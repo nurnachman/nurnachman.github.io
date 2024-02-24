@@ -241,31 +241,59 @@ body {
 /*-------------------------cube------------------------*/
 
 
-/* Define the size and position of the cube */
-.cube {
-  width: 200px;
-  height: 200px;
-  position: relative;
-  margin: 100px auto;
-}
+  .cube {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    transform-style: preserve-3d;
+    margin: 100px auto;
+  }
 
-/* Define the faces of the cube */
-.face {
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  border: 2px solid black;
-}
+  .face {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    border: 2px solid black;
+  }
 
-/* Define the colors and positions of each face */
-.front  { background: hsla(  0, 100%, 50%, 0.7); transform: translateZ(100px); }
-.back   { background: hsla( 60, 100%, 50%, 0.7); transform: rotateY(180deg) translateZ(100px); }
-.right  { background: hsla(120, 100%, 50%, 0.7); transform: rotateY( 90deg) translateZ(100px); }
-.left   { background: hsla(180, 100%, 50%, 0.7); transform: rotateY(-90deg) translateZ(100px); }
-.top    { background: hsla(240, 100%, 50%, 0.7); transform: rotateX( 90deg) translateZ(100px); }
-.bottom { background: hsla(300, 100%, 50%, 0.7); transform: rotateX(-90deg) translateZ(100px); }
+  .front {
+    background-color: red;
+    transform: translateZ(100px);
+  }
 
+  .back {
+    background-color: green;
+    transform: rotateY(180deg) translateZ(100px);
+  }
 
+  .top {
+    background-color: blue;
+    transform: rotateX(90deg) translateZ(100px);
+  }
+
+  .bottom {
+    background-color: yellow;
+    transform: rotateX(-90deg) translateZ(100px);
+  }
+
+  .left {
+    background-color: cyan;
+    transform: rotateY(-90deg) translateZ(100px);
+  }
+
+  .right {
+    background-color: magenta;
+    transform: rotateY(90deg) translateZ(100px);
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate3d(1, 1, 1, 0deg);
+    }
+    to {
+      transform: rotate3d(1, 1, 1, 360deg);
+    }
+  }
 
 
 /*-----------------------parallax-----------------------*/
