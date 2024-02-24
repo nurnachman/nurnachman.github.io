@@ -237,6 +237,37 @@ body {
 }
 
 
+
+/*-------------------------cube------------------------*/
+
+
+/* Define the size and position of the cube */
+.cube {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  margin: 100px auto;
+}
+
+/* Define the faces of the cube */
+.face {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border: 2px solid black;
+}
+
+/* Define the colors and positions of each face */
+.front  { background: hsla(  0, 100%, 50%, 0.7); transform: translateZ(100px); }
+.back   { background: hsla( 60, 100%, 50%, 0.7); transform: rotateY(180deg) translateZ(100px); }
+.right  { background: hsla(120, 100%, 50%, 0.7); transform: rotateY( 90deg) translateZ(100px); }
+.left   { background: hsla(180, 100%, 50%, 0.7); transform: rotateY(-90deg) translateZ(100px); }
+.top    { background: hsla(240, 100%, 50%, 0.7); transform: rotateX( 90deg) translateZ(100px); }
+.bottom { background: hsla(300, 100%, 50%, 0.7); transform: rotateX(-90deg) translateZ(100px); }
+
+
+
+
 /*-----------------------parallax-----------------------*/
 /* credits: https://www.youtube.com/watch?v=aywzn9cf-_U */
 #stars1 {
