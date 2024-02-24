@@ -14,5 +14,7 @@ function handleOrientation(event) {
   cube.style.transform = `perspective(800px) rotateX(${beta}deg) rotateY(${-gamma}deg) rotateZ(${alpha}deg)`;
 }
 
-// Add an event listener for the device orientation event
-window.addEventListener("deviceorientation", handleOrientation);
+function addOrientationListener() {
+    // Add an event listener for the device orientation event
+    window.addEventListener("deviceorientation", handleOrientation);
+}
