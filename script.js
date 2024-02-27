@@ -29,5 +29,6 @@ function addOrientationListener() {
   } else {
     // Handle regular non iOS 13+ devices.
     window.addEventListener('devicemotion', handleOrientation);
+    window.addEventListener('deviceorientation', handleOrientation);
   }
 }
