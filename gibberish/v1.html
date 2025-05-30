@@ -1,0 +1,131 @@
+<!DOCTYPE html><html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מקלדת עברית מותאמת</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    height: 100vh;
+    font-family: sans-serif;
+    background: #f0f0f0;
+  }
+  textarea {
+    width: 90%;
+    height: 30vh;
+    margin-top: 1em;
+    font-size: 1.2em;
+    direction: rtl;
+    resize: none;
+  }
+  table {
+    width: 90%;
+    height: 60vh;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+  td {
+    padding: 0;
+  }
+  button {
+    width: 100%;
+    height: 100%;
+    font-size: 1.5em;
+    border: 1px solid #ccc;
+    background: white;
+    cursor: pointer;
+  }
+  button:active {
+    background: #ddd;
+  }
+</style>
+</head>
+<body><textarea id="output" placeholder="התחל/י להקליד..." autofocus></textarea><table>
+  <tr>
+    <td><button disabled>Shift</button></td>
+    <td><button>ח</button></td>
+    <td><button>ד</button></td>
+    <td><button>ע</button></td>
+    <td><button>פ</button></td>
+    <td><button>ג</button></td>
+    <td><button onclick="backspace()">⌫</button></td>
+  </tr>
+  <tr>
+    <td><button disabled>🌐</button></td>
+    <td><button>מ</button></td>
+    <td><button>ה</button></td>
+    <td><button>ת</button></td>
+    <td><button>ב</button></td>
+    <td><button>צ</button></td>
+    <td><button onclick="backspace()">⌫</button></td>
+  </tr>
+  <tr>
+    <td><button onclick="insert(' ')">⎵</button></td>
+    <td><button>ל</button></td>
+    <td><button>ו</button></td>
+    <td><button>י</button></td>
+    <td><button>א</button></td>
+    <td><button>ר</button></td>
+    <td><button onclick="insert(' ')">⎵</button></td>
+  </tr>
+  <tr>
+    <td><button onclick="insert(' ')">⎵</button></td>
+    <td><button>ט</button></td>
+    <td><button>כ</button></td>
+    <td><button>ק</button></td>
+    <td><button>נ</button></td>
+    <td><button>ש</button></td>
+    <td><button onclick="insert(' ')">⎵</button></td>
+  </tr>
+  <tr>
+    <td><button onclick="insert('123')">123</button></td>
+    <td><button>,</button></td>
+    <td><button>?</button></td>
+    <td><button>ס</button></td>
+    <td><button>ז</button></td>
+    <td><button>.</button></td>
+    <td><button onclick="insert('\n')">⏎</button></td>
+  </tr>
+</table><script>
+const textarea = document.getElementById('output');
+let lastChar = '';
+
+const finalForms = {
+  'פ': 'ף',
+  'כ': 'ך',
+  'מ': 'ם',
+  'נ': 'ן',
+  'צ': 'ץ'
+};
+
+function insert(char) {
+  if (char === '123') {
+    // בעתיד: מתג מספרים
+    return;
+  }
+
+  if ([' ', '.', ','].includes(char) && finalForms[lastChar]) {
+    // Replace last character with its final form
+    textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
+    lastChar = '';
+  } else {
+    textarea.value += char;
+    lastChar = char;
+  }
+}
+
+function backspace() {
+  textarea.value = textarea.value.slice(0, -1);
+}
+
+const buttons = document.querySelectorAll('button');
+buttons.forEach(button => {
+  if (!button.disabled && button.innerText.length === 1) {
+    button.addEventListener('click', () => insert(button.innerText));
+  }
+});
+</script></body>
+</html>
