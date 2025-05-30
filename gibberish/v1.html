@@ -124,7 +124,6 @@
 </div><script>
 const output = document.getElementById('output');
 let lastChar = '';
-let lastPos = null;
 let sentenceTravelSum = 0;
 
 const keyPositions = {
@@ -132,7 +131,8 @@ const keyPositions = {
   'מ': [1, 1], 'ה': [1, 2], 'ת': [1, 3], 'ב': [1, 4], 'צ': [1, 5],
   'ל': [2, 1], 'ו': [2, 2], 'י': [2, 3], 'א': [2, 4], 'ר': [2, 5],
   'ט': [3, 1], 'כ': [3, 2], 'ק': [3, 3], 'נ': [3, 4], 'ש': [3, 5],
-  'ס': [4, 3], 'ז': [4, 4]
+  'ס': [4, 3], 'ז': [4, 4],
+  ' ': [2, 0] // רווח
 };
 
 const finalForms = {
@@ -169,12 +169,21 @@ function insert(char) {
     return;
   }
 
-  if (char === ' ') {
-    lastChar = '';
-    lastPos = null;
-    const block = createCharBlock(' ', '');
-    output.appendChild(block);
-    return;
+  // Handle final form replacement before space or punctuation
+  if (char === ' ' || char === '.' || char === ',' || char === '\n') {
+    if (finalForms[lastChar]) {
+      const lastBlock = output.lastChild.querySelector('.char');
+      if (lastBlock) {
+        lastBlock.textContent = finalForms[lastChar];
+        lastChar = finalForms[lastChar];
+      }
+    }
+  }
+
+  let distance = 0;
+  if (lastChar && keyPositions[lastChar] && keyPositions[char]) {
+    distance = manhattanDistance(keyPositions[lastChar], keyPositions[char]);
+    sentenceTravelSum += distance;
   }
 
   if (char === '\n') {
@@ -190,14 +199,7 @@ function insert(char) {
     output.appendChild(br);
     sentenceTravelSum = 0;
     lastChar = '';
-    lastPos = null;
     return;
-  }
-
-  let distance = 0;
-  if (lastChar && keyPositions[lastChar] && keyPositions[char]) {
-    distance = manhattanDistance(keyPositions[lastChar], keyPositions[char]);
-    sentenceTravelSum += distance;
   }
 
   const block = createCharBlock(char, distance);
