@@ -55,7 +55,7 @@
   }
 </style>
 </head>
-<body><textarea id="output" placeholder="התחל להקליד..." autofocus></textarea><div class="keyboard">
+<body><textarea id="output" placeholder="אדם בלילה שקט זמר כתב סיפור חכם ונעים על מקלדת יפה וצנועה בגזע עתיק" autofocus></textarea><div class="keyboard">
   <div class="row">
     <button disabled>Shift</button>
     <button>ח</button>
@@ -105,6 +105,7 @@
 const textarea = document.getElementById('output');
 let lastChar = '';
 let currentWord = [];
+let sentenceTravelSum = 0;
 
 const keyPositions = {
   'ח': [0, 1], 'ד': [0, 2], 'ע': [0, 3], 'פ': [0, 4], 'ג': [0, 5],
@@ -146,7 +147,8 @@ function insert(char) {
   if (char === ' ') {
     if (currentWord.length > 1) {
       const distance = calculateTravelDistance(currentWord);
-      textarea.value += `[travel=${distance}]`;
+      textarea.value += `[${distance}]`;
+      sentenceTravelSum += distance;
     }
     textarea.value += char;
     currentWord = [];
@@ -159,9 +161,14 @@ function insert(char) {
     lastChar = '';
     currentWord = [];
   } else if (char === '\n') {
-    textarea.value += "\n";
-    lastChar = '';
+    if (currentWord.length > 1) {
+      const distance = calculateTravelDistance(currentWord);
+      sentenceTravelSum += distance;
+    }
+    textarea.value += `\n{${sentenceTravelSum}}`;
+    sentenceTravelSum = 0;
     currentWord = [];
+    lastChar = '';
   } else {
     textarea.value += char;
     lastChar = char;
