@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="he">
+<!DOCTYPE html><html lang="he">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,11 +55,7 @@
   }
 </style>
 </head>
-<body>
-
-<textarea id="output" placeholder="התחל להקליד..." autofocus></textarea>
-
-<div class="keyboard">
+<body><textarea id="output" placeholder="התחל להקליד..." autofocus></textarea><div class="keyboard">
   <div class="row">
     <button disabled>Shift</button>
     <button>ח</button>
@@ -106,11 +101,18 @@
     <button>.</button>
     <button onclick="insert('\n')">⏎</button>
   </div>
-</div>
-
-<script>
+</div><script>
 const textarea = document.getElementById('output');
 let lastChar = '';
+let currentWord = [];
+
+const keyPositions = {
+  'ח': [0, 1], 'ד': [0, 2], 'ע': [0, 3], 'פ': [0, 4], 'ג': [0, 5],
+  'מ': [1, 1], 'ה': [1, 2], 'ת': [1, 3], 'ב': [1, 4], 'צ': [1, 5],
+  'ל': [2, 1], 'ו': [2, 2], 'י': [2, 3], 'א': [2, 4], 'ר': [2, 5],
+  'ט': [3, 1], 'כ': [3, 2], 'ק': [3, 3], 'נ': [3, 4], 'ש': [3, 5],
+  'ס': [4, 3], 'ז': [4, 4]
+};
 
 const finalForms = {
   'פ': 'ף',
@@ -120,25 +122,58 @@ const finalForms = {
   'צ': 'ץ'
 };
 
+function manhattanDistance(pos1, pos2) {
+  return Math.abs(pos1[0] - pos2[0]) + Math.abs(pos1[1] - pos2[1]);
+}
+
+function calculateTravelDistance(word) {
+  let distance = 0;
+  for (let i = 1; i < word.length; i++) {
+    const prev = keyPositions[word[i - 1]];
+    const curr = keyPositions[word[i]];
+    if (prev && curr) {
+      distance += manhattanDistance(prev, curr);
+    }
+  }
+  return distance;
+}
+
 function insert(char) {
   if (char === '123') {
     return;
   }
 
-  if ([' ', '.', ','].includes(char) && finalForms[lastChar]) {
+  if (char === ' ') {
+    if (currentWord.length > 1) {
+      const distance = calculateTravelDistance(currentWord);
+      textarea.value += `[travel=${distance}]`;
+    }
+    textarea.value += char;
+    currentWord = [];
+    lastChar = '';
+    return;
+  }
+
+  if (['.', ','].includes(char) && finalForms[lastChar]) {
     textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
     lastChar = '';
+    currentWord = [];
   } else if (char === '\n') {
     textarea.value += "\n";
     lastChar = '';
+    currentWord = [];
   } else {
     textarea.value += char;
     lastChar = char;
+    currentWord.push(char);
   }
 }
 
 function backspace() {
   textarea.value = textarea.value.slice(0, -1);
+  if (currentWord.length > 0) {
+    currentWord.pop();
+  }
 }
 
 const buttons = document.querySelectorAll('button');
@@ -147,7 +182,5 @@ buttons.forEach(button => {
     button.addEventListener('click', () => insert(button.innerText));
   }
 });
-</script>
-
-</body>
+</script></body>
 </html>
