@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="he">
+<!DOCTYPE html>
+<html lang="he">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,34 +14,14 @@
     font-family: sans-serif;
     background: #f0f0f0;
   }
-  #output {
+  textarea {
     width: 90%;
     height: 50vh;
     margin: 1em auto 0 auto;
-    font-size: 2em;
+    font-size: 1.2em;
     direction: rtl;
-    background: white;
-    border: 1px solid #ccc;
-    overflow-y: auto;
-    padding: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-  }
-  .char-block {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 2px;
-    position: relative;
-  }
-  .distance-overlay {
-    font-size: 0.5em;
-    color: rgba(0, 0, 0, 0.5);
-    margin-bottom: 2px;
-  }
-  .char {
-    font-size: 1em;
+    resize: none;
+    display: block;
   }
   .keyboard {
     width: 100%;
@@ -75,7 +56,11 @@
   }
 </style>
 </head>
-<body><div id="output" contenteditable="false"></div><div class="keyboard">
+<body>
+
+<textarea id="output" placeholder="התחל להקליד..." autofocus></textarea>
+
+<div class="keyboard">
   <div class="row">
     <button disabled>Shift</button>
     <button>ח</button>
@@ -121,18 +106,19 @@
     <button>.</button>
     <button onclick="insert('\n')">⏎</button>
   </div>
-</div><script>
-const output = document.getElementById('output');
+</div>
+
+<script>
+const textarea = document.getElementById('output');
 let lastChar = '';
-let sentenceTravelSum = 0;
+let currentWord = [];
 
 const keyPositions = {
   'ח': [0, 1], 'ד': [0, 2], 'ע': [0, 3], 'פ': [0, 4], 'ג': [0, 5],
   'מ': [1, 1], 'ה': [1, 2], 'ת': [1, 3], 'ב': [1, 4], 'צ': [1, 5],
   'ל': [2, 1], 'ו': [2, 2], 'י': [2, 3], 'א': [2, 4], 'ר': [2, 5],
   'ט': [3, 1], 'כ': [3, 2], 'ק': [3, 3], 'נ': [3, 4], 'ש': [3, 5],
-  'ס': [4, 3], 'ז': [4, 4],
-  ' ': [2, 0] // רווח
+  'ס': [4, 3], 'ז': [4, 4]
 };
 
 const finalForms = {
@@ -147,21 +133,16 @@ function manhattanDistance(pos1, pos2) {
   return Math.abs(pos1[0] - pos2[0]) + Math.abs(pos1[1] - pos2[1]);
 }
 
-function createCharBlock(char, distance) {
-  const block = document.createElement('span');
-  block.className = 'char-block';
-
-  const overlay = document.createElement('div');
-  overlay.className = 'distance-overlay';
-  overlay.textContent = distance;
-
-  const charDiv = document.createElement('div');
-  charDiv.className = 'char';
-  charDiv.textContent = char;
-
-  block.appendChild(overlay);
-  block.appendChild(charDiv);
-  return block;
+function calculateTravelDistance(word) {
+  let distance = 0;
+  for (let i = 1; i < word.length; i++) {
+    const prev = keyPositions[word[i - 1]];
+    const curr = keyPositions[word[i]];
+    if (prev && curr) {
+      distance += manhattanDistance(prev, curr);
+    }
+  }
+  return distance;
 }
 
 function insert(char) {
@@ -169,49 +150,36 @@ function insert(char) {
     return;
   }
 
-  // Handle final form replacement before space or punctuation
-  if (char === ' ' || char === '.' || char === ',' || char === '\n') {
-    if (finalForms[lastChar]) {
-      const lastBlock = output.lastChild.querySelector('.char');
-      if (lastBlock) {
-        lastBlock.textContent = finalForms[lastChar];
-        lastChar = finalForms[lastChar];
-      }
+  if (char === ' ') {
+    if (currentWord.length > 1) {
+      const distance = calculateTravelDistance(currentWord);
+      textarea.value += `[travel=${distance}]`;
     }
-  }
-
-  let distance = 0;
-  if (lastChar && keyPositions[lastChar] && keyPositions[char]) {
-    distance = manhattanDistance(keyPositions[lastChar], keyPositions[char]);
-    sentenceTravelSum += distance;
-  }
-
-  if (char === '\n') {
-    const totalBlock = document.createElement('div');
-    totalBlock.style.width = '100%';
-    totalBlock.style.textAlign = 'center';
-    totalBlock.style.fontSize = '0.8em';
-    totalBlock.style.color = 'rgba(0,0,0,0.7)';
-    totalBlock.textContent = `{${sentenceTravelSum}}`;
-    output.appendChild(totalBlock);
-
-    const br = document.createElement('br');
-    output.appendChild(br);
-    sentenceTravelSum = 0;
+    textarea.value += char;
+    currentWord = [];
     lastChar = '';
     return;
   }
 
-  const block = createCharBlock(char, distance);
-  output.appendChild(block);
-
-  lastChar = char;
+  if (['.', ','].includes(char) && finalForms[lastChar]) {
+    textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
+    lastChar = '';
+    currentWord = [];
+  } else if (char === '\n') {
+    textarea.value += "\n";
+    lastChar = '';
+    currentWord = [];
+  } else {
+    textarea.value += char;
+    lastChar = char;
+    currentWord.push(char);
+  }
 }
 
 function backspace() {
-  const last = output.lastChild;
-  if (last) {
-    output.removeChild(last);
+  textarea.value = textarea.value.slice(0, -1);
+  if (currentWord.length > 0) {
+    currentWord.pop();
   }
 }
 
@@ -221,5 +189,7 @@ buttons.forEach(button => {
     button.addEventListener('click', () => insert(button.innerText));
   }
 });
-</script></body>
+</script>
+
+</body>
 </html>
