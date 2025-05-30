@@ -13,14 +13,34 @@
     font-family: sans-serif;
     background: #f0f0f0;
   }
-  textarea {
+  #output {
     width: 90%;
     height: 50vh;
     margin: 1em auto 0 auto;
-    font-size: 1.2em;
+    font-size: 2em;
     direction: rtl;
-    resize: none;
-    display: block;
+    background: white;
+    border: 1px solid #ccc;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+  }
+  .char-block {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2px;
+    position: relative;
+  }
+  .distance-overlay {
+    font-size: 0.5em;
+    color: rgba(0, 0, 0, 0.5);
+    margin-bottom: 2px;
+  }
+  .char {
+    font-size: 1em;
   }
   .keyboard {
     width: 100%;
@@ -55,7 +75,7 @@
   }
 </style>
 </head>
-<body><textarea id="output" placeholder="אדם בלילה שקט זמר כתב סיפור חכם ונעים על מקלדת יפה וצנועה בגזע עתיק" autofocus></textarea><div class="keyboard">
+<body><div id="output" contenteditable="false"></div><div class="keyboard">
   <div class="row">
     <button disabled>Shift</button>
     <button>ח</button>
@@ -102,9 +122,9 @@
     <button onclick="insert('\n')">⏎</button>
   </div>
 </div><script>
-const textarea = document.getElementById('output');
+const output = document.getElementById('output');
 let lastChar = '';
-let currentWord = [];
+let lastPos = null;
 let sentenceTravelSum = 0;
 
 const keyPositions = {
@@ -127,16 +147,21 @@ function manhattanDistance(pos1, pos2) {
   return Math.abs(pos1[0] - pos2[0]) + Math.abs(pos1[1] - pos2[1]);
 }
 
-function calculateTravelDistance(word) {
-  let distance = 0;
-  for (let i = 1; i < word.length; i++) {
-    const prev = keyPositions[word[i - 1]];
-    const curr = keyPositions[word[i]];
-    if (prev && curr) {
-      distance += manhattanDistance(prev, curr);
-    }
-  }
-  return distance;
+function createCharBlock(char, distance) {
+  const block = document.createElement('span');
+  block.className = 'char-block';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'distance-overlay';
+  overlay.textContent = distance;
+
+  const charDiv = document.createElement('div');
+  charDiv.className = 'char';
+  charDiv.textContent = char;
+
+  block.appendChild(overlay);
+  block.appendChild(charDiv);
+  return block;
 }
 
 function insert(char) {
@@ -145,41 +170,46 @@ function insert(char) {
   }
 
   if (char === ' ') {
-    if (currentWord.length > 1) {
-      const distance = calculateTravelDistance(currentWord);
-      textarea.value += `[${distance}]`;
-      sentenceTravelSum += distance;
-    }
-    textarea.value += char;
-    currentWord = [];
     lastChar = '';
+    lastPos = null;
+    const block = createCharBlock(' ', '');
+    output.appendChild(block);
     return;
   }
 
-  if (['.', ','].includes(char) && finalForms[lastChar]) {
-    textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
-    lastChar = '';
-    currentWord = [];
-  } else if (char === '\n') {
-    if (currentWord.length > 1) {
-      const distance = calculateTravelDistance(currentWord);
-      sentenceTravelSum += distance;
-    }
-    textarea.value += `\n{${sentenceTravelSum}}`;
+  if (char === '\n') {
+    const totalBlock = document.createElement('div');
+    totalBlock.style.width = '100%';
+    totalBlock.style.textAlign = 'center';
+    totalBlock.style.fontSize = '0.8em';
+    totalBlock.style.color = 'rgba(0,0,0,0.7)';
+    totalBlock.textContent = `{${sentenceTravelSum}}`;
+    output.appendChild(totalBlock);
+
+    const br = document.createElement('br');
+    output.appendChild(br);
     sentenceTravelSum = 0;
-    currentWord = [];
     lastChar = '';
-  } else {
-    textarea.value += char;
-    lastChar = char;
-    currentWord.push(char);
+    lastPos = null;
+    return;
   }
+
+  let distance = 0;
+  if (lastChar && keyPositions[lastChar] && keyPositions[char]) {
+    distance = manhattanDistance(keyPositions[lastChar], keyPositions[char]);
+    sentenceTravelSum += distance;
+  }
+
+  const block = createCharBlock(char, distance);
+  output.appendChild(block);
+
+  lastChar = char;
 }
 
 function backspace() {
-  textarea.value = textarea.value.slice(0, -1);
-  if (currentWord.length > 0) {
-    currentWord.pop();
+  const last = output.lastChild;
+  if (last) {
+    output.removeChild(last);
   }
 }
 
