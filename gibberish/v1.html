@@ -55,7 +55,13 @@
   }
 </style>
 </head>
-<body><textarea id="output" placeholder="התחל להקליד..." autofocus></textarea><div class="keyboard">
+<body>
+<textarea id="output" placeholder="התחל/י להקליד..." autofocus>
+</textarea>
+
+<div id="debug-info" style="margin: 1em; font-size: 1.2em; direction: rtl;"></div>
+
+<div class="keyboard">
   <div class="row">
     <button disabled>Shift</button>
     <button>ח</button>
@@ -137,8 +143,43 @@ function backspace() {
 const buttons = document.querySelectorAll('button');
 buttons.forEach(button => {
   if (!button.disabled && button.innerText.length === 1) {
-    button.addEventListener('click', () => insert(button.innerText));
+    button.addEventListener('click', () => insert(button.innerText))
+
+button.addEventListener('click', event => {
+    const rect = button.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    if (lastX !== null && lastY !== null) {
+      const distance = calculateDistance(lastX, lastY, centerX, centerY);
+      totalDistance += distance;
+      updateDebugInfo(distance, totalDistance);
+    }
+
+    lastX = centerX;
+    lastY = centerY;
+  });
   }
 });
+
+// משתנים גלובליים לשמירת המצב
+let lastX = null;
+let lastY = null;
+let totalDistance = 0;
+
+// פונקציה לחישוב מרחק בין שתי נקודות
+function calculateDistance(x1, y1, x2, y2) {
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+// פונקציה לעדכון המידע בדיבאג
+function updateDebugInfo(currentDistance, totalDistance) {
+  const debugDiv = document.getElementById('debug-info');
+  debugDiv.innerHTML = `
+    מרחק נוכחי: ${currentDistance.toFixed(2)} פיקסלים<br>
+    מרחק מצטבר: ${totalDistance.toFixed(2)} פיקסלים
+  `;
+}
+
 </script></body>
 </html>
