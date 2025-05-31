@@ -69,5 +69,33 @@ function copyToClipboard() {
     alert('Text copied to clipboard!');
 }
 </script>
+
+<textarea id="base64input" placeholder="Paste Base64 text here"></textarea>
+<br>
+<button onclick="showImage()">Show Image</button>
+<div id="imagecontainer"></div>
+
+<script>
+function showImage() {
+    const input = document.getElementById('base64input').value;
+    const container = document.getElementById('imagecontainer');
+    container.innerHTML = ''; // Clear previous
+
+    // Simple regex to find all base64 image strings
+    const base64Images = input.match(/data:image\\/[^;]+;base64,[A-Za-z0-9+/=\\n\\r]+/g);
+    if (base64Images) {
+        base64Images.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src;
+            img.style.maxWidth = '100%';
+            img.style.marginTop = '1em';
+            container.appendChild(img);
+        });
+    } else {
+        alert('No valid Base64 image found!');
+    }
+}
+</script>
+
 </body>
 </html>
