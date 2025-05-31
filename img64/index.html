@@ -3,24 +3,51 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image to Base64 Converter</title>
+<title>Image Base64 Tool</title>
 <link rel="manifest" href="manifest.json">
 <style>
-  body { font-family: sans-serif; text-align: center; padding: 2em; }
-  input[type=file] { display: block; margin: 1em auto; }
-  img { max-width: 100%; margin-top: 1em; }
+  body { font-family: sans-serif; padding: 1em; margin: 0; }
+  .tabs { display: flex; justify-content: center; margin-bottom: 1em; }
+  .tab { padding: 0.5em 1em; cursor: pointer; border: 1px solid #ccc; }
+  .tab.active { background-color: #4CAF50; color: white; }
+  .section { display: none; }
+  .section.active { display: block; }
   textarea { width: 100%; height: 150px; margin-top: 1em; direction: ltr; }
   button { padding: 0.5em 1em; font-size: 1em; margin-top: 1em; }
+  img { max-width: 100%; margin-top: 1em; border: 1px solid #ccc; }
 </style>
 </head>
 <body>
-<h1>Image to Base64 Converter</h1>
-<input type="file" accept="image/*" onchange="convertToBase64(event)">
-<textarea id="output" readonly></textarea>
-<br>
-<button onclick="copyToClipboard()">Copy to Clipboard</button>
-<img id="preview" alt="Preview">
+<h1>Image Base64 Tool</h1>
+
+<div class="tabs">
+  <div class="tab active" onclick="showSection('convert')">Convert to Base64</div>
+  <div class="tab" onclick="showSection('view')">View Base64</div>
+</div>
+
+<div id="convert" class="section active">
+  <input type="file" accept="image/*" onchange="convertToBase64(event)">
+  <textarea id="output" readonly></textarea>
+  <br>
+  <button onclick="copyToClipboard()">Copy to Clipboard</button>
+  <img id="preview" alt="Preview">
+</div>
+
+<div id="view" class="section">
+  <textarea id="base64input" placeholder="Paste Base64 text here"></textarea>
+  <br>
+  <button onclick="showImage()">Show Image</button>
+  <div id="imagecontainer"></div>
+</div>
+
 <script>
+function showSection(sectionId) {
+  document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+  document.getElementById(sectionId).classList.add('active');
+  document.querySelectorAll('.tab')[sectionId === 'convert' ? 0 : 1].classList.add('active');
+}
+
 function convertToBase64(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -68,34 +95,22 @@ function copyToClipboard() {
     document.execCommand('copy');
     alert('Text copied to clipboard!');
 }
-</script>
 
-<textarea id="base64input" placeholder="Paste Base64 text here"></textarea>
-<br>
-<button onclick="showImage()">Show Image</button>
-<div id="imagecontainer"></div>
-
-<script>
 function showImage() {
-    const input = document.getElementById('base64input').value;
+    const input = document.getElementById('base64input').value.trim();
     const container = document.getElementById('imagecontainer');
-    container.innerHTML = ''; // Clear previous
+    container.innerHTML = '';
 
-    // Simple regex to find all base64 image strings
-    const base64Images = input.match(/data:image\\/[^;]+;base64,[A-Za-z0-9+/=\\n\\r]+/g);
-    if (base64Images) {
-        base64Images.forEach(src => {
-            const img = document.createElement('img');
-            img.src = src;
-            img.style.maxWidth = '100%';
-            img.style.marginTop = '1em';
-            container.appendChild(img);
-        });
+    const cleanedInput = input.replace(/\s+/g, '');
+
+    if (cleanedInput.startsWith('data:image/')) {
+        const img = document.createElement('img');
+        img.src = cleanedInput;
+        container.appendChild(img);
     } else {
-        alert('No valid Base64 image found!');
+        alert('No valid Base64 image found! Make sure it starts with "data:image/..."');
     }
 }
 </script>
-
 </body>
 </html>
