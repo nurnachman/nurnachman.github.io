@@ -118,7 +118,7 @@ function insert(char) {
     return;
   }
 
-  if ([' ', '.', ','].includes(char) && finalForms[lastChar]) {
+  if ([' ', '.', ',', '\n', '?'].includes(char) && finalForms[lastChar]) {
     textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
     lastChar = '';
   } else if (char === '\n') {
