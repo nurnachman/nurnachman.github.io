@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>img64</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2rem; }
+    textarea { width: 90%; height: 100px; margin: 1rem 0; }
+    img { max-width: 90%; margin-top: 1rem; }
+    input[type="file"] { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>img64</h1>
+
+  <textarea id="base64Input" placeholder="Paste Base64 here..."></textarea><br>
+  <button onclick="showImage()">Show Image</button>
+
+  <br><br>
+  <input type="file" accept="image/*" onchange="convertToBase64(event)"><br>
+
+  <textarea id="base64Output" placeholder="Base64 Output..."></textarea>
+
+  <img id="imageDisplay" />
+
+  <script>
+    function showImage() {
+      const base64Text = document.getElementById('base64Input').value.trim();
+      if (base64Text) {
+        const cleanBase64 = base64Text.split(',').pop();
+        document.getElementById('imageDisplay').src = 'data:image/jpeg;base64,' + cleanBase64;
+      }
+    }
+
+    function convertToBase64(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('imageDisplay').src = e.target.result;
+          const base64Data = e.target.result.split(',')[1];
+          document.getElementById('base64Output').value = base64Data;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  </script>
+</body>
+</html>
