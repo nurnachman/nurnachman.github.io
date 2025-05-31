@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>img64 - Shared Image Viewer</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2rem; }
+    img { max-width: 90%; margin-top: 1rem; }
+    textarea { width: 90%; height: 100px; margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Shared Content - img64</h1>
+  <img id="imageDisplay" />
+  <textarea id="textDisplay" readonly></textarea>
+
+  <script>
+    if ('launchQueue' in window) {
+      window.launchQueue.setConsumer(launchParams => {
+        if (!launchParams.files.length) return;
+
+        for (const fileHandle of launchParams.files) {
+          fileHandle.getFile().then(file => {
+            if (file.type.startsWith('image/')) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                document.getElementById('imageDisplay').src = e.target.result;
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+        }
+
+        if (launchParams.formData) {
+          const text = launchParams.formData.get('text');
+          if (text) {
+            document.getElementById('textDisplay').value = text;
+          }
+        }
+      });
+    } else {
+      document.body.innerHTML += "<p>Web Share Target API is not supported on this browser.</p>";
+    }
+  </script>
+</body>
+</html>
