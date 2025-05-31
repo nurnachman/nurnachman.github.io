@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מקלדת עברית מותאמת</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin: 0;
+    height: 100vh;
+    font-family: sans-serif;
+    background: #f0f0f0;
+  }
+  textarea {
+    width: 90%;
+    height: 50vh;
+    margin: 1em auto 0 auto;
+    font-size: 1.2em;
+    direction: rtl;
+    resize: none;
+    display: block;
+  }
+  .keyboard {
+    width: 100%;
+    height: 30vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    padding: 5px;
+    box-sizing: border-box;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    background: #f0f0f0;
+  }
+  .row {
+    display: flex;
+    justify-content: space-evenly;
+    margin: 4px 0;
+    flex: 1;
+  }
+  button {
+    flex: 1;
+    margin: 0 4px;
+    font-size: 1.4em;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 8px;
+    height: 100%;
+  }
+  button:active {
+    background: #ddd;
+  }
+</style>
+</head>
+<body>
+<textarea id="output" placeholder="כל דג סקרן בטח, 
+זחל פתאום חיש מהר,
+קפץ וגמע יין">
+</textarea>
+
+<div id="debug-info" style="margin: 1em; font-size: 1.2em; direction: rtl;"></div>
+
+<div class="keyboard">
+  <div class="row">
+    <button disabled>Shift</button>
+    <button>ח</button>
+    <button>ד</button>
+    <button>ע</button>
+    <button>פ</button>
+    <button>ג</button>
+    <button onclick="backspace()">⌫</button>
+  </div>
+  <div class="row">
+    <button disabled>🌐</button>
+    <button>מ</button>
+    <button>ה</button>
+    <button>ת</button>
+    <button>ב</button>
+    <button>צ</button>
+    <button onclick="backspace()">⌫</button>
+  </div>
+  <div class="row">
+    <button>⎵</button>
+    <button>ל</button>
+    <button>ו</button>
+    <button>י</button>
+    <button>א</button>
+    <button>ר</button>
+    <button>⎵</button>
+  </div>
+  <div class="row">
+    <button>⎵</button>
+    <button>ט</button>
+    <button>כ</button>
+    <button>ק</button>
+    <button>נ</button>
+    <button>ש</button>
+    <button>⎵</button>
+  </div>
+  <div class="row">
+    <button onclick="insert('123')">123</button>
+    <button>,</button>
+    <button>?</button>
+    <button>ס</button>
+    <button>ז</button>
+    <button>.</button>
+    <button onclick="insert('\n')">⏎</button>
+  </div>
+</div><script>
+const textarea = document.getElementById('output');
+let lastChar = '';
+
+const finalForms = {
+  'פ': 'ף',
+  'כ': 'ך',
+  'מ': 'ם',
+  'נ': 'ן',
+  'צ': 'ץ'
+};
+
+function insert(char) {
+  if (char === '123') {
+    return;
+  }
+
+  if (['⎵', '.', ',', '\n', '?'].includes(char) && finalForms[lastChar]) {
+    textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
+    lastChar = '';
+  } else if (char === '\n') {
+    textarea.value += "\n";
+    lastChar = '';
+  } else {
+    textarea.value += char;
+    lastChar = char;
+  }
+}
+
+function backspace() {
+  textarea.value = textarea.value.slice(0, -1);
+}
+
+const buttons = document.querySelectorAll('button');
+buttons.forEach(button => {
+  if (!button.disabled && button.innerText.length === 1) {
+    button.addEventListener('click', () => insert(button.innerText))
+
+button.addEventListener('click', event => {
+    const rect = button.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    if (lastX !== null && lastY !== null) {
+      const distance = calculateDistance(lastX, lastY, centerX, centerY);
+      totalDistance += distance;
+      updateDebugInfo(distance, totalDistance);
+    }
+
+    lastX = centerX;
+    lastY = centerY;
+  });
+  }
+});
+
+// משתנים גלובליים לשמירת המצב
+let lastX = null;
+let lastY = null;
+let totalDistance = 0;
+
+// פונקציה לחישוב מרחק בין שתי נקודות
+function calculateDistance(x1, y1, x2, y2) {
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+// פונקציה לעדכון המידע בדיבאג
+function updateDebugInfo(currentDistance, totalDistance) {
+  const debugDiv = document.getElementById('debug-info');
+  debugDiv.innerHTML = `
+    מרחק נוכחי: ${currentDistance.toFixed(2)} פיקסלים<br>
+    מרחק מצטבר: ${totalDistance.toFixed(2)} פיקסלים
+  `;
+}
+
+</script></body>
+</html>
