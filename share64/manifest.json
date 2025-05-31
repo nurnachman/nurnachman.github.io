@@ -1,7 +1,8 @@
 {
-  "name": "img64",
-  "short_name": "img64",
-  "start_url": "./",
+  "name": "share64",
+  "short_name": "share64",
+  "start_url": "/share64/",
+  "scope": "/share64/",
   "display": "standalone",
   "background_color": "#ffffff",
   "description": "Convert images to Base64 and view Base64 images.",
@@ -18,7 +19,7 @@
     }
   ],
   "share_target": {
-    "action": "/share-target/",
+    "action": "/share64/share-target/",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
