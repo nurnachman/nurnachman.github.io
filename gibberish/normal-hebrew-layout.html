@@ -112,23 +112,12 @@
 const textarea = document.getElementById('output');
 let lastChar = '';
 
-const finalForms = {
-  'פ': 'ף',
-  'כ': 'ך',
-  'מ': 'ם',
-  'נ': 'ן',
-  'צ': 'ץ'
-};
-
 function insert(char) {
   if (char === '123') {
     return;
   }
 
-  if (['⎵', '.', ',', '\n', '?'].includes(char) && finalForms[lastChar]) {
-    textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
-    lastChar = '';
-  } else if (char === '\n') {
+  if (char === '\n') {
     textarea.value += "\n";
     lastChar = '';
   } else {
