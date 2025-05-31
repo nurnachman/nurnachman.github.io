@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image to Base64 Converter</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  body { font-family: sans-serif; text-align: center; padding: 2em; }
+  input[type=file] { display: block; margin: 1em auto; }
+  img { max-width: 100%; margin-top: 1em; }
+  textarea { width: 100%; height: 150px; margin-top: 1em; direction: ltr; }
+  button { padding: 0.5em 1em; font-size: 1em; margin-top: 1em; }
+</style>
+</head>
+<body>
+<h1>Image to Base64 Converter</h1>
+<input type="file" accept="image/*" onchange="convertToBase64(event)">
+<textarea id="output" readonly></textarea>
+<br>
+<button onclick="copyToClipboard()">Copy to Clipboard</button>
+<img id="preview" alt="Preview">
+<script>
+function convertToBase64(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(readerEvent) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDim = 1024;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxDim) {
+                    height = Math.round(height * (maxDim / width));
+                    width = maxDim;
+                }
+            } else {
+                if (height > maxDim) {
+                    width = Math.round(width * (maxDim / height));
+                    height = maxDim;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+            document.getElementById('output').value = dataUrl;
+            document.getElementById('preview').src = dataUrl;
+        }
+        img.src = readerEvent.target.result;
+    }
+    reader.readAsDataURL(file);
+}
+
+function copyToClipboard() {
+    const output = document.getElementById('output');
+    output.select();
+    document.execCommand('copy');
+    alert('Text copied to clipboard!');
+}
+</script>
+</body>
+</html>
