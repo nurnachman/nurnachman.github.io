@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="he">
+<!DOCTYPE html><html lang="he">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,21 +13,42 @@
     font-family: sans-serif;
     background: #f0f0f0;
   }
-  textarea {
+  #output {
     width: 90%;
     height: 50vh;
     margin: 1em auto 0 auto;
-    font-size: 1.2em;
+    font-size: 2em;
     direction: rtl;
-    resize: none;
-    display: block;
+    background: white;
+    border: 1px solid #ccc;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+  }
+  .char-block {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2px;
+    position: relative;
+  }
+  .distance-overlay {
+    font-size: 0.5em;
+    color: rgba(0, 0, 0, 0.5);
+    margin-bottom: 2px;
+  }
+  .char {
+    font-size: 1em;
   }
   .keyboard {
     width: 100%;
     height: 30vh;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     justify-content: space-evenly;
+    align-content: flex-start;
     padding: 5px;
     box-sizing: border-box;
     position: fixed;
@@ -39,12 +59,11 @@
   .row {
     display: flex;
     justify-content: space-evenly;
-    margin: 4px 0;
-    flex: 1;
+    width: 100%;
   }
   button {
     flex: 1;
-    margin: 0 4px;
+    margin: 2px;
     font-size: 1.4em;
     border: 1px solid #ccc;
     background: white;
@@ -54,13 +73,23 @@
   button:active {
     background: #ddd;
   }
+  .space-button {
+    flex: 1;
+    margin: 2px;
+    font-size: 1.4em;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 8px;
+    height: calc(200% + 8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 </style>
 </head>
-<body>
-
-<textarea id="output" placeholder="התחל להקליד..." autofocus></textarea>
-
-<div class="keyboard">
+<body><div id="output" contenteditable="false">
+  היום בחרתי לכתוב משפט קצר ונעים לבדיקה חכמה של מקלדת ייחודית וסוגרים
+</div><div class="keyboard">
   <div class="row">
     <button disabled>Shift</button>
     <button>ח</button>
@@ -80,45 +109,35 @@
     <button onclick="backspace()">⌫</button>
   </div>
   <div class="row">
-    <button onclick="insert(' ')">⎵</button>
+    <button class="space-button" rowspan="2" onclick="insert(' ')">⎵</button>
     <button>ל</button>
     <button>ו</button>
     <button>י</button>
     <button>א</button>
     <button>ר</button>
-    <button onclick="insert(' ')">⎵</button>
+    <button>.</button>
   </div>
   <div class="row">
-    <button onclick="insert(' ')">⎵</button>
     <button>ט</button>
     <button>כ</button>
     <button>ק</button>
     <button>נ</button>
     <button>ש</button>
-    <button onclick="insert(' ')">⎵</button>
-  </div>
-  <div class="row">
-    <button onclick="insert('123')">123</button>
-    <button>,</button>
-    <button>?</button>
     <button>ס</button>
     <button>ז</button>
-    <button>.</button>
     <button onclick="insert('\n')">⏎</button>
   </div>
-</div>
-
-<script>
-const textarea = document.getElementById('output');
+</div><script>
+const output = document.getElementById('output');
 let lastChar = '';
-let currentWord = [];
+let sentenceTravelSum = 0;
 
 const keyPositions = {
   'ח': [0, 1], 'ד': [0, 2], 'ע': [0, 3], 'פ': [0, 4], 'ג': [0, 5],
   'מ': [1, 1], 'ה': [1, 2], 'ת': [1, 3], 'ב': [1, 4], 'צ': [1, 5],
   'ל': [2, 1], 'ו': [2, 2], 'י': [2, 3], 'א': [2, 4], 'ר': [2, 5],
-  'ט': [3, 1], 'כ': [3, 2], 'ק': [3, 3], 'נ': [3, 4], 'ש': [3, 5],
-  'ס': [4, 3], 'ז': [4, 4]
+  'ט': [3, 0], 'כ': [3, 1], 'ק': [3, 2], 'נ': [3, 3], 'ש': [3, 4], 'ס': [3, 5], 'ז': [3, 6],
+  '.': [2, 6], ' ': [2, 0]
 };
 
 const finalForms = {
@@ -133,16 +152,21 @@ function manhattanDistance(pos1, pos2) {
   return Math.abs(pos1[0] - pos2[0]) + Math.abs(pos1[1] - pos2[1]);
 }
 
-function calculateTravelDistance(word) {
-  let distance = 0;
-  for (let i = 1; i < word.length; i++) {
-    const prev = keyPositions[word[i - 1]];
-    const curr = keyPositions[word[i]];
-    if (prev && curr) {
-      distance += manhattanDistance(prev, curr);
-    }
-  }
-  return distance;
+function createCharBlock(char, distance) {
+  const block = document.createElement('span');
+  block.className = 'char-block';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'distance-overlay';
+  overlay.textContent = distance;
+
+  const charDiv = document.createElement('div');
+  charDiv.className = 'char';
+  charDiv.textContent = char;
+
+  block.appendChild(overlay);
+  block.appendChild(charDiv);
+  return block;
 }
 
 function insert(char) {
@@ -150,36 +174,46 @@ function insert(char) {
     return;
   }
 
-  if (char === ' ') {
-    if (currentWord.length > 1) {
-      const distance = calculateTravelDistance(currentWord);
-      textarea.value += `[${distance}]`;
+  if (finalForms[lastChar] && (char === ' ' || char === '.' || char === ',' || char === '\n')) {
+    const lastBlock = output.lastChild.querySelector('.char');
+    if (lastBlock) {
+      lastBlock.textContent = finalForms[lastChar];
+      lastChar = finalForms[lastChar];
     }
-    textarea.value += char;
-    currentWord = [];
+  }
+
+  let distance = 0;
+  if (lastChar && keyPositions[lastChar] && keyPositions[char]) {
+    distance = manhattanDistance(keyPositions[lastChar], keyPositions[char]);
+    sentenceTravelSum += distance;
+  }
+
+  if (char === '\n') {
+    const totalBlock = document.createElement('div');
+    totalBlock.style.width = '100%';
+    totalBlock.style.textAlign = 'center';
+    totalBlock.style.fontSize = '0.8em';
+    totalBlock.style.color = 'rgba(0,0,0,0.7)';
+    totalBlock.textContent = `{${sentenceTravelSum}}`;
+    output.appendChild(totalBlock);
+
+    const br = document.createElement('br');
+    output.appendChild(br);
+    sentenceTravelSum = 0;
     lastChar = '';
     return;
   }
 
-  if (['.', ','].includes(char) && finalForms[lastChar]) {
-    textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
-    lastChar = '';
-    currentWord = [];
-  } else if (char === '\n') {
-    textarea.value += "\n";
-    lastChar = '';
-    currentWord = [];
-  } else {
-    textarea.value += char;
-    lastChar = char;
-    currentWord.push(char);
-  }
+  const block = createCharBlock(char, distance);
+  output.appendChild(block);
+
+  lastChar = char;
 }
 
 function backspace() {
-  textarea.value = textarea.value.slice(0, -1);
-  if (currentWord.length > 0) {
-    currentWord.pop();
+  const last = output.lastChild;
+  if (last) {
+    output.removeChild(last);
   }
 }
 
@@ -189,7 +223,5 @@ buttons.forEach(button => {
     button.addEventListener('click', () => insert(button.innerText));
   }
 });
-</script>
-
-</body>
+</script></body>
 </html>
