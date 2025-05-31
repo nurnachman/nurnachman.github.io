@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>img64</title>
+  <title>share64</title>
   <link rel="manifest" href="manifest.json">
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2rem; }
@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h1>img64</h1>
+  <h1>share64</h1>
 
   <textarea id="base64Input" placeholder="Paste Base64 here..."></textarea><br>
   <button onclick="showImage()">Show Image</button>
@@ -44,6 +44,10 @@
         };
         reader.readAsDataURL(file);
       }
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/share64/service-worker.js', { scope: '/share64/' });
     }
   </script>
 </body>
