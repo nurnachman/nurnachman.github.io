@@ -75,22 +75,22 @@
     <button onclick="backspace()">⌫</button>
   </div>
   <div class="row">
-    <button onclick="insert(' ')">⎵</button>
+    <button onclick="insert('⎵')">⎵</button>
     <button>ל</button>
     <button>ו</button>
     <button>י</button>
     <button>א</button>
     <button>ר</button>
-    <button onclick="insert(' ')">⎵</button>
+    <button onclick="insert('⎵')">⎵</button>
   </div>
   <div class="row">
-    <button onclick="insert(' ')">⎵</button>
+    <button onclick="insert('⎵')">⎵</button>
     <button>ט</button>
     <button>כ</button>
     <button>ק</button>
     <button>נ</button>
     <button>ש</button>
-    <button onclick="insert(' ')">⎵</button>
+    <button onclick="insert('⎵')">⎵</button>
   </div>
   <div class="row">
     <button onclick="insert('123')">123</button>
@@ -118,7 +118,7 @@ function insert(char) {
     return;
   }
 
-  if ([' ', '.', ',', '\n', '?'].includes(char) && finalForms[lastChar]) {
+  if (['⎵', '.', ',', '\n', '?'].includes(char) && finalForms[lastChar]) {
     textarea.value = textarea.value.slice(0, -1) + finalForms[lastChar] + char;
     lastChar = '';
   } else if (char === '\n') {
