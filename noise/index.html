@@ -1,32 +1,37 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Noise Logger</title>
+<title>Noise Logger – Long History</title>
 <style>
   :root{--bg:#eee;--fg:#111;--card:#fff;--ok:#2e7d32;--err:#c62828;--accent:#3949ab}
   body{margin:0;padding:20px;font-family:system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg)}
-  .container{max-width:900px;margin:auto;background:var(--card);border-radius:12px;padding:20px}
+  .container{max-width:980px;margin:auto;background:var(--card);border-radius:12px;padding:20px}
+  h1{margin:0 0 10px}
   .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:16px 0}
   button{padding:10px 18px;border:0;border-radius:8px;color:#fff;cursor:pointer}
   .start-btn{background:var(--ok)}
   .stop-btn{background:var(--err)}
   .export-btn{background:var(--accent)}
   .disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .status{font-weight:700;margin:8px 0}
-  canvas{width:100%;height:220px;border:1px solid #ddd;border-radius:8px;background:#000}
-  .clip-head{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
-  .clips{list-style:none;padding:0;margin:10px 0;border:1px solid #e6e6e6;border-radius:8px;max-height:320px;overflow:auto}
-  .clip{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee}
-  .clip:last-child{border-bottom:0}
-  .meta{font-size:14px}
-  .empty{padding:28px;text-align:center;color:#666;font-style:italic}
+  canvas{width:100%;border:1px solid #ddd;border-radius:8px;background:#000}
+  #scope{height:220px;margin-bottom:10px}
+  #history{height:160px}
+  .bar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:6px 0}
+  select{padding:6px;border-radius:6px}
+  .subtle{opacity:.8}
   @media (max-width:768px){
     .controls{flex-direction:column;align-items:center}
     button{width:220px}
-    .clip{flex-direction:column;align-items:flex-start}
   }
+  .clips{list-style:none;padding:0;margin:10px 0;border:1px solid #e6e6e6;border-radius:8px;max-height:260px;overflow:auto}
+  .clip{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee}
+  .clip:last-child{border-bottom:0}
+  .meta{font-size:14px}
+  .empty{padding:20px;text-align:center;color:#999}
 </style>
 </head>
 <body>
@@ -36,16 +41,47 @@
   <div class="controls">
     <button id="startBtn" class="start-btn">Start</button>
     <button id="stopBtn" class="stop-btn disabled">Stop</button>
-    <button id="exportBtn" class="export-btn">Download CSV</button>
+    <button id="exportCsvBtn" class="export-btn">Export CSV (Clips)</button>
   </div>
 
-  <div id="status" class="status">Status: Stopped</div>
-  <div>Threshold: <span id="threshView">0.20</span> &nbsp;|&nbsp; Pre-roll: 3s, Post-roll: 3s</div>
+  <div class="row">
+    <div id="status" class="status">Status: Stopped</div>
+    <div id="diag" class="subtle"></div>
+  </div>
+
+  <div class="row subtle" style="gap:16px;margin-bottom:6px">
+    <div>Threshold: <span id="threshView">auto</span></div>
+    <label><input type="checkbox" id="autoChk" checked> Auto-Threshold</label>
+    <div>Pre/Post: 3s / 3s</div>
+  </div>
+
+  <!-- short live scope -->
   <canvas id="scope"></canvas>
 
-  <div class="clip-head">
-    <h3>Clips (<span id="clipCount">0</span>)</h3>
-    <small id="diag"></small>
+  <!-- long history header -->
+  <div class="bar">
+    <strong>History (Peak/sec)</strong>
+    <span class="subtle" id="histStats"></span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label>Window:
+        <select id="histWindow">
+          <option value="3600">1h</option>
+          <option value="10800">3h</option>
+          <option value="21600">6h</option>
+          <option value="36000" selected>10h</option>
+          <option value="43200">12h</option>
+        </select>
+      </label>
+      <button id="exportHistBtn" class="export-btn" title="Export history CSV">Export History</button>
+      <button id="clearHistBtn" class="stop-btn" title="Clear history">Clear</button>
+    </div>
+  </div>
+  <!-- long history chart -->
+  <canvas id="history"></canvas>
+
+  <div class="bar">
+    <strong>Clips (<span id="clipCount">0</span>)</strong>
+    <small class="subtle">Auto-capture with pre/post roll</small>
   </div>
   <ul id="clips" class="clips">
     <li class="empty">No recordings yet</li>
@@ -53,285 +89,471 @@
 </div>
 
 <script>
+/* ===== Config ===== */
+const HISTORY_BIN_SEC = 1;    // נקודה לשנייה – מתאים ל-10–12 שעות
+const MAX_HOURS = 12;         // שמירה ב-IDB
+/* ===== IndexedDB ===== */
+const DB_NAME = 'noise-logger';
+const DB_VER  = 2;
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('clips')) {
+        const os = db.createObjectStore('clips', { keyPath:'id', autoIncrement:true });
+        os.createIndex('ts', 'ts');
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath:'key' });
+      }
+      if (!db.objectStoreNames.contains('history')) {
+        const hs = db.createObjectStore('history', { keyPath:'t' }); // t=epochSec
+        hs.createIndex('t','t');
+      }
+    };
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = ()=>reject(req.error);
+  });
+}
+async function dbPut(store, value){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value);
+    tx.oncomplete = res; tx.onerror = ()=>rej(tx.error);
+  });
+}
+async function dbBulkPut(store, values){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(store, 'readwrite');
+    const os = tx.objectStore(store);
+    values.forEach(v=>os.put(v));
+    tx.oncomplete = res; tx.onerror = ()=>rej(tx.error);
+  });
+}
+async function dbGetAll(store){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = ()=>res(req.result);
+    req.onerror = ()=>rej(req.error);
+  });
+}
+async function dbDeleteAll(store){
+  const db = await openDB();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).clear();
+    tx.oncomplete = res; tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+/* ===== App ===== */
 class NoiseLogger {
-  constructor() {
-    // === config ===
-    this.threshold = 0.005;               // 0..1
-    this.preSeconds = 3;                 // seconds before peak
-    this.postSeconds = 3;                // seconds after peak
+  constructor(){
+    // config / detection
+    this.autoThreshold = true;
+    this.threshold = 0.20;     // manual fallback
+    this.thresholdOn = this.threshold;
+    this.thresholdOff = this.threshold*0.7;
+    this.preSeconds = 3;
+    this.postSeconds = 3;
     this.procSize = 2048;
 
-    // === state ===
-    this.isRecording = false;
-    this.capturing = false;
-    this.audioCtx = null;
-    this.mediaStream = null;
-    this.source = null;
-    this.analyser = null;
-    this.processor = null;
-    this.muteGain = null;
+    // audio state
+    this.isRecording=false; this.capturing=false;
+    this.audioCtx=null; this.mediaStream=null;
+    this.source=null; this.analyser=null; this.processor=null; this.muteGain=null;
+    this.sampleRate=44100;
+    this.ring=new Float32Array(1); this.ringWrite=0;
+    this.captureBuffer=[]; this.captureSamplesLeft=0;
 
-    this.sampleRate = 44100;             // will be overridden by AudioContext
-    this.ring = new Float32Array(1);     // resized in start
-    this.ringWrite = 0;                  // write index
-    this.clips = [];
-    this.captureBuffer = [];             // Float32 chunks during capture
-    this.captureSamplesLeft = 0;
-    this.lastPeak = 0;
+    // auto threshold calibration
+    this.calibrating=true; this.calibTimeMs=2000;
+    this.calibStart=0; this.rmsSum=0; this.rmsCount=0;
+
+    // clips (short recordings)
+    this.clips=[];
+
+    // history (per-second)
+    this.hist = []; // {t, peak, rms}
+    this.histWindowSec = 36000; // default 10h
+    this.histLastBinT = 0;
+    this.histAcc = {sumSq:0, peak:0, count:0};
 
     // UI
-    this.status = document.getElementById('status');
-    this.startBtn = document.getElementById('startBtn');
-    this.stopBtn = document.getElementById('stopBtn');
-    this.exportBtn = document.getElementById('exportBtn');
-    this.threshView = document.getElementById('threshView');
-    this.scope = document.getElementById('scope');
-    this.sctx = this.scope.getContext('2d');
-    this.clipList = document.getElementById('clips');
-    this.clipCount = document.getElementById('clipCount');
-    this.diag = document.getElementById('diag');
+    this.el = {
+      startBtn: document.getElementById('startBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      exportCsvBtn: document.getElementById('exportCsvBtn'),
+      exportHistBtn: document.getElementById('exportHistBtn'),
+      clearHistBtn: document.getElementById('clearHistBtn'),
+      status: document.getElementById('status'),
+      diag: document.getElementById('diag'),
+      threshView: document.getElementById('threshView'),
+      autoChk: document.getElementById('autoChk'),
+      scope: document.getElementById('scope'),
+      history: document.getElementById('history'),
+      histWindow: document.getElementById('histWindow'),
+      histStats: document.getElementById('histStats'),
+      clips: document.getElementById('clips'),
+      clipCount: document.getElementById('clipCount'),
+    };
+    this.scopeCtx = this.el.scope.getContext('2d');
+    this.histCtx  = this.el.history.getContext('2d');
 
     this.bind();
-    this.drawScopeInit();
+    this.resizeCanvases();
+    this.restore().then(()=>this.drawHistory()); // initial paint
   }
 
-  bind() {
-    this.startBtn.onclick = () => this.start();
-    this.stopBtn.onclick = () => this.stop();
-    this.exportBtn.onclick = () => this.exportCSV();
-    window.addEventListener('resize', () => this.drawScopeInit());
+  bind(){
+    this.el.startBtn.onclick = ()=>this.start();
+    this.el.stopBtn.onclick  = ()=>this.stop();
+    this.el.exportCsvBtn.onclick = ()=>this.exportClipsCSV();
+    this.el.exportHistBtn.onclick = ()=>this.exportHistoryCSV();
+    this.el.clearHistBtn.onclick  = async ()=>{
+      await dbDeleteAll('history'); this.hist = []; this.drawHistory();
+    };
+    this.el.autoChk.onchange = ()=>{
+      this.autoThreshold = this.el.autoChk.checked;
+      dbPut('settings', {key:'autoThreshold', value:this.autoThreshold});
+      this.updateThresholdText();
+    };
+    this.el.histWindow.onchange = ()=>{
+      this.histWindowSec = parseInt(this.el.histWindow.value,10);
+      this.drawHistory();
+    };
+    window.addEventListener('resize', ()=>this.resizeCanvases());
   }
 
-  drawScopeInit() {
-    this.scope.width = this.scope.clientWidth;
-    this.scope.height = this.scope.clientHeight;
-    this.sctx.fillStyle = '#000';
-    this.sctx.fillRect(0,0,this.scope.width,this.scope.height);
+  resizeCanvases(){
+    this.el.scope.width = this.el.scope.clientWidth;
+    this.el.scope.height= this.el.scope.clientHeight;
+    this.el.history.width = this.el.history.clientWidth;
+    this.el.history.height= this.el.history.clientHeight;
+    this.scopeCtx.fillStyle='#000'; this.scopeCtx.fillRect(0,0,this.el.scope.width,this.el.scope.height);
+    this.drawHistory();
   }
 
-  async start() {
-    const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
-    if (!window.isSecureContext && !isLocalhost) {
-      alert('Needs HTTPS or localhost'); return;
-    }
+  async restore(){
+    // settings
     try {
-      // prefer strict, then fallback to {audio:true}
+      const settings = await dbGetAll('settings');
+      const m = new Map(settings.map(s=>[s.key,s.value]));
+      if (m.has('autoThreshold')) {
+        this.autoThreshold = !!m.get('autoThreshold');
+        this.el.autoChk.checked = this.autoThreshold;
+      }
+    } catch {}
+    this.updateThresholdText();
+
+    // history
+    try {
+      const rows = await dbGetAll('history');
+      rows.sort((a,b)=>a.t-b.t);
+      // keep last MAX_HOURS
+      const cut = Math.max(0, rows.length - MAX_HOURS*3600/HISTORY_BIN_SEC);
+      this.hist = rows.slice(cut);
+      if (this.hist.length) this.histLastBinT = this.hist[this.hist.length-1].t;
+    } catch (e) { console.warn('history restore failed', e); }
+
+    // clips meta (lazy: not reloading blobs here to shorten code)
+  }
+
+  updateThresholdText(){
+    this.el.threshView.textContent = this.autoThreshold ? 'auto' : this.threshold.toFixed(2);
+  }
+
+  /* ===== Audio ===== */
+  async start(){
+    const isLocalhost=['localhost','127.0.0.1','::1'].includes(location.hostname);
+    if (!window.isSecureContext && !isLocalhost) { alert('Needs HTTPS or localhost'); return; }
+    try{
       let stream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
-        });
+        stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({audio:true});
       }
       this.mediaStream = stream;
 
       const AC = window.AudioContext || window.webkitAudioContext;
-      this.audioCtx = new AC();
-      if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+      this.audioCtx = new AC(); if (this.audioCtx.state==='suspended') await this.audioCtx.resume();
       this.sampleRate = this.audioCtx.sampleRate;
 
-      // ring buffer sized to preSeconds
+      // ring buffer for pre-roll
       const ringLen = Math.max(1, Math.floor(this.preSeconds * this.sampleRate));
-      this.ring = new Float32Array(ringLen);
-      this.ringWrite = 0;
+      this.ring = new Float32Array(ringLen); this.ringWrite=0;
 
       // graph
       this.source = this.audioCtx.createMediaStreamSource(stream);
       this.analyser = this.audioCtx.createAnalyser();
-      this.analyser.fftSize = 2048;
-      this.analyser.smoothingTimeConstant = 0.25;
-
-      this.processor = this.audioCtx.createScriptProcessor(this.procSize, 1, 1);
+      this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.25;
+      this.processor = this.audioCtx.createScriptProcessor(this.procSize,1,1);
       this.processor.onaudioprocess = (e)=>this.onAudio(e);
-
-      this.muteGain = this.audioCtx.createGain();
-      this.muteGain.gain.value = 0;
+      this.muteGain = this.audioCtx.createGain(); this.muteGain.gain.value=0;
 
       this.source.connect(this.analyser);
       this.source.connect(this.processor);
-      this.processor.connect(this.muteGain);
-      this.muteGain.connect(this.audioCtx.destination);
+      this.processor.connect(this.muteGain); this.muteGain.connect(this.audioCtx.destination);
+
+      // calibration
+      this.calibrating = this.autoThreshold;
+      this.calibStart = performance.now(); this.rmsSum=0; this.rmsCount=0;
+
+      // history bin init
+      this.histAcc = {sumSq:0, peak:0, count:0};
+      this.histLastBinT = Math.floor(Date.now()/1000);
 
       this.isRecording = true;
       this.updateUI();
       this.animateScope();
-
-      // quick diag
-      this.diag.textContent = `SR=${this.sampleRate}Hz`;
-    } catch (err) {
-      alert(`Failed to start:\n${err.name}: ${err.message}`);
-      console.error(err);
+      this.animateHistory();
+      this.el.diag.textContent = `SR=${this.sampleRate}Hz`;
+    }catch(err){
+      alert(`Failed to start:\n${err.name}: ${err.message}`); console.error(err);
     }
   }
 
-  onAudio(e) {
+  onAudio(e){
     const ch = e.inputBuffer.getChannelData(0);
-    // write into ring (pre-roll)
-    for (let i=0;i<ch.length;i++){
-      this.ring[this.ringWrite] = ch[i];
-      this.ringWrite = (this.ringWrite + 1) % this.ring.length;
-    }
-    // peak detect
-    let peak = 0;
-    for (let i=0;i<ch.length;i++){ const a = Math.abs(ch[i]); if (a>peak) peak=a; }
-    this.lastPeak = peak;
 
-    // start capture if threshold crossed
-    if (!this.capturing && peak >= this.threshold) {
-      this.capturing = true;
-      const pre = this.readRingSnapshot();              // pre-roll copy
-      this.captureBuffer = [pre, ch.slice(0)];          // include current chunk
-      this.captureSamplesLeft = Math.floor(this.postSeconds * this.sampleRate);
-    } else if (this.capturing) {
+    // pre-roll ring
+    for (let i=0;i<ch.length;i++){ this.ring[this.ringWrite]=ch[i]; this.ringWrite=(this.ringWrite+1)%this.ring.length; }
+
+    // stats for detection
+    let peak=0, sumSq=0;
+    for (let i=0;i<ch.length;i++){ const a=Math.abs(ch[i]); if (a>peak) peak=a; sumSq+=ch[i]*ch[i]; }
+    const rms = Math.sqrt(sumSq/ch.length);
+
+    // auto-threshold calibration
+    if (this.calibrating){
+      this.rmsSum += rms; this.rmsCount++;
+      if (performance.now() - this.calibStart >= 2000){
+        const base = this.rmsSum/Math.max(1,this.rmsCount);
+        const th = Math.max(0.02, base*6);
+        this.thresholdOn = th; this.thresholdOff = th*0.7; this.calibrating=false;
+        this.el.threshView.textContent = `auto≈${this.thresholdOn.toFixed(3)}`;
+      }
+    }
+
+    // detection (hysteresis)
+    if (!this.capturing){
+      const th = this.autoThreshold ? this.thresholdOn : this.thresholdOn/*set below*/;
+      if (!this.autoThreshold){ this.thresholdOn = this.threshold; this.thresholdOff = this.threshold*0.7; }
+      if (!this.calibrating && peak >= this.thresholdOn) this.startCapture(ch);
+    } else {
       this.captureBuffer.push(ch.slice(0));
       this.captureSamplesLeft -= ch.length;
-      if (this.captureSamplesLeft <= 0) this.finishCapture();
+      if (this.captureSamplesLeft <= 0 && peak < this.thresholdOff) this.finishCapture();
+      else if (peak >= this.thresholdOn) this.captureSamplesLeft = Math.floor(this.postSeconds*this.sampleRate);
     }
+
+    // history accumulation (bin per HISTORY_BIN_SEC)
+    const nowSec = Math.floor(Date.now()/1000);
+    if (nowSec !== this.histLastBinT){
+      // flush previous bin(s)
+      const binsToFlush = Math.max(1, Math.floor((nowSec - this.histLastBinT)));
+      for (let b=0;b<binsToFlush;b++){
+        const count = this.histAcc.count||1;
+        const point = {
+          t: this.histLastBinT + b,
+          peak: this.histAcc.peak||0,
+          rms: Math.sqrt((this.histAcc.sumSq||0)/count)
+        };
+        this.pushHistory(point);
+        this.histAcc = {sumSq:0, peak:0, count:0};
+      }
+      this.histLastBinT = nowSec;
+    }
+    // accumulate current chunk
+    this.histAcc.sumSq += sumSq;
+    this.histAcc.count += ch.length;
+    if (peak > this.histAcc.peak) this.histAcc.peak = peak;
   }
 
-  readRingSnapshot() {
-    // return Float32Array with ring content oldest→newest
+  startCapture(firstChunk){
+    this.capturing = true;
+    const pre = this.readRingSnapshot();
+    this.captureBuffer = [pre, firstChunk.slice(0)];
+    this.captureSamplesLeft = Math.floor(this.postSeconds * this.sampleRate);
+  }
+  readRingSnapshot(){
     const out = new Float32Array(this.ring.length);
-    const head = this.ringWrite;
-    const tailCount = this.ring.length - head;
+    const head = this.ringWrite, tail = this.ring.length - head;
     out.set(this.ring.subarray(head), 0);
-    out.set(this.ring.subarray(0, head), tailCount);
+    out.set(this.ring.subarray(0, head), tail);
     return out;
   }
-
-  finishCapture() {
-    this.capturing = false;
+  finishCapture(){
+    this.capturing=false;
     // flatten
-    const total = this.captureBuffer.reduce((n,arr)=>n+arr.length,0);
+    const total = this.captureBuffer.reduce((n,a)=>n+a.length,0);
     const pcm = new Float32Array(total);
-    let off = 0;
-    for (const arr of this.captureBuffer){ pcm.set(arr, off); off += arr.length; }
-    const wav = this.pcmToWav(pcm, this.sampleRate);
-    const blob = new Blob([wav], {type:'audio/wav'});
+    let o=0; for(const a of this.captureBuffer){ pcm.set(a,o); o+=a.length; }
+    const wavView = this.pcmToWav(pcm, this.sampleRate);
+    const blob = new Blob([wavView], {type:'audio/wav'});
+    const ts = Date.now();
+    const filename = `clip_${ts}.wav`;
     const url = URL.createObjectURL(blob);
-    const ts = new Date();
-    this.clips.unshift({
-      ts: ts.toISOString(),
-      peak: this.lastPeak,
-      url,
-      filename: `clip_${ts.getTime()}.wav`,
-      display: ts.toLocaleString()
-    });
+
+    // persist light (omit blob persistence here for brevity)
+    this.clips.unshift({ ts:new Date(ts).toISOString(), peak:0, url, filename, display:new Date(ts).toLocaleString() });
     this.renderClips();
   }
-
-  pcmToWav(float32, sampleRate) {
-    // 16-bit PCM WAV
-    const bytesPerSample = 2;
-    const blockAlign = bytesPerSample * 1;
-    const buffer = new ArrayBuffer(44 + float32.length * bytesPerSample);
-    const view = new DataView(buffer);
-    const writeStr=(o,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+  pcmToWav(float32, sampleRate){
+    const bytesPerSample=2, blockAlign=2;
+    const buf = new ArrayBuffer(44 + float32.length*bytesPerSample);
+    const v = new DataView(buf);
+    const w=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
     let o=0;
-    writeStr(o,'RIFF'); o+=4;
-    view.setUint32(o, 36 + float32.length*bytesPerSample, true); o+=4;
-    writeStr(o,'WAVE'); o+=4;
-    writeStr(o,'fmt '); o+=4;
-    view.setUint32(o,16,true); o+=4;              // PCM fmt chunk size
-    view.setUint16(o,1,true); o+=2;               // PCM
-    view.setUint16(o,1,true); o+=2;               // channels=1
-    view.setUint32(o,sampleRate,true); o+=4;
-    view.setUint32(o,sampleRate*blockAlign,true); o+=4;
-    view.setUint16(o,blockAlign,true); o+=2;
-    view.setUint16(o,bytesPerSample*8,true); o+=2;
-    writeStr(o,'data'); o+=4;
-    view.setUint32(o,float32.length*bytesPerSample,true); o+=4;
-    for (let i=0;i<float32.length;i++,o+=2){
-      const s = Math.max(-1, Math.min(1, float32[i]));
-      view.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    w(o,'RIFF'); o+=4; v.setUint32(o,36+float32.length*2,true); o+=4;
+    w(o,'WAVE'); o+=4; w(o,'fmt '); o+=4;
+    v.setUint32(o,16,true); o+=4; v.setUint16(o,1,true); o+=2;
+    v.setUint16(o,1,true); o+=2; v.setUint32(o,sampleRate,true); o+=4;
+    v.setUint32(o,sampleRate*blockAlign,true); o+=4; v.setUint16(o,blockAlign,true); o+=2;
+    v.setUint16(o,16,true); o+=2; w(o,'data'); o+=4;
+    v.setUint32(o,float32.length*2,true); o+=4;
+    for(let i=0;i<float32.length;i++,o+=2){
+      const s=Math.max(-1,Math.min(1,float32[i])); v.setInt16(o, s<0?s*0x8000:s*0x7FFF, true);
     }
-    return view;
+    return v;
   }
 
-  // draw at ~24fps (לא מהר מדי)
-  animateScope(prevTs=0) {
+  /* ===== Rendering ===== */
+  animateScope(prevTs=0){
     if (!this.isRecording) return;
     requestAnimationFrame((ts)=>{
-      if (ts - prevTs >= 1000/24) {
+      if (ts - prevTs >= 1000/24){
         const data = new Uint8Array(this.analyser.frequencyBinCount);
         this.analyser.getByteTimeDomainData(data);
-        const w = this.scope.width, h = this.scope.height;
-        this.sctx.fillStyle = '#000'; this.sctx.fillRect(0,0,w,h);
-        this.sctx.beginPath(); this.sctx.strokeStyle = '#0f0'; this.sctx.lineWidth = 2;
-        const dx = w / data.length;
-        let x = 0;
-        for (let i=0;i<data.length;i++){
-          const v = data[i] / 128.0;
-          const y = v * h/2;
-          if (i===0) this.sctx.moveTo(x,y); else this.sctx.lineTo(x,y);
-          x += dx;
+        const ctx=this.scopeCtx, w=this.el.scope.width, h=this.el.scope.height;
+        ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+        ctx.beginPath(); ctx.strokeStyle='#0f0'; ctx.lineWidth=2;
+        const dx = w/data.length; let x=0;
+        for(let i=0;i<data.length;i++){
+          const y = (data[i]/128.0) * h/2;
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); x+=dx;
         }
-        this.sctx.stroke();
-
-        // threshold bands
-        this.sctx.setLineDash([4,4]); this.sctx.strokeStyle = '#f00'; this.sctx.lineWidth = 1;
-        const band = this.threshold * h/4;
-        this.sctx.beginPath();
-        this.sctx.moveTo(0, h/2 - band); this.sctx.lineTo(w, h/2 - band);
-        this.sctx.moveTo(0, h/2 + band); this.sctx.lineTo(w, h/2 + band);
-        this.sctx.stroke(); this.sctx.setLineDash([]);
+        ctx.stroke();
+        // thresholds
+        const th = this.autoThreshold ? (this.thresholdOn||0.1) : this.threshold;
+        const band = th * h/4;
+        ctx.setLineDash([4,4]); ctx.strokeStyle='#f00'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(0, h/2 - band); ctx.lineTo(w, h/2 - band);
+        ctx.moveTo(0, h/2 + band); ctx.lineTo(w, h/2 + band); ctx.stroke(); ctx.setLineDash([]);
       }
       this.animateScope(ts);
     });
   }
 
-  stop() {
-    this.isRecording = false;
+  pushHistory(point){
+    // push, trim, persist batched
+    this.hist.push(point);
+    const maxPts = MAX_HOURS*3600/HISTORY_BIN_SEC;
+    if (this.hist.length > maxPts) this.hist.splice(0, this.hist.length - maxPts);
+    // persist (single put is fine per second)
+    dbPut('history', point).catch(()=>{});
+  }
+
+  animateHistory(prev=0){
+    if (!this.isRecording) return;
+    requestAnimationFrame((ts)=>{
+      if (ts - prev >= 1000/2){ // ~2fps redraw
+        this.drawHistory();
+      }
+      this.animateHistory(ts);
+    });
+  }
+
+  drawHistory(){
+    const ctx=this.histCtx, w=this.el.history.width, h=this.el.history.height;
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+    if (this.hist.length===0){ 
+      ctx.fillStyle='#888'; ctx.fillText('No history yet', 12, 20); 
+      this.el.histStats.textContent='';
+      return; 
+    }
+
+    const now = Math.floor(Date.now()/1000);
+    const windowSec = this.histWindowSec;
+    const startT = now - windowSec;
+    // select points in window
+    const pts = this.hist.filter(p=>p.t>=startT && p.t<=now);
+    if (pts.length<2){ this.el.histStats.textContent=`0 pts`; return; }
+
+    // compute y-scale by peak max in window
+    const maxPeak = Math.max(...pts.map(p=>p.peak), 0.01);
+    const pad=4;
+    ctx.strokeStyle='#0af'; ctx.lineWidth=1;
+
+    // axes (subtle)
+    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.beginPath();
+    ctx.moveTo(pad, h-pad); ctx.lineTo(w-pad, h-pad); // x-axis
+    ctx.moveTo(pad, pad); ctx.lineTo(pad, h-pad);     // y-axis
+    ctx.stroke();
+
+    // data
+    ctx.strokeStyle='#0f0'; ctx.beginPath();
+    for (let i=0;i<pts.length;i++){
+      const px = pad + ( (pts[i].t - startT) / windowSec ) * (w-2*pad);
+      const py = h-pad - (pts[i].peak / maxPeak) * (h-2*pad);
+      if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+
+    this.el.histStats.textContent = `${pts.length} pts · max=${maxPeak.toFixed(3)}`;
+  }
+
+  /* ===== UI / misc ===== */
+  stop(){
+    this.isRecording=false;
     if (this.mediaStream) this.mediaStream.getTracks().forEach(t=>t.stop());
     if (this.audioCtx) this.audioCtx.close();
     this.updateUI();
   }
-
-  updateUI() {
-    this.status.textContent = this.isRecording ? 'Status: Recording…' : 'Status: Stopped';
-    this.startBtn.classList.toggle('disabled', this.isRecording);
-    this.stopBtn.classList.toggle('disabled', !this.isRecording);
-    this.threshView.textContent = this.threshold.toFixed(2);
-    this.clipCount.textContent = this.clips.length;
+  updateUI(){
+    this.el.status.textContent = this.isRecording ? 'Status: Recording…' : 'Status: Stopped';
+    this.el.startBtn.classList.toggle('disabled', this.isRecording);
+    this.el.stopBtn.classList.toggle('disabled', !this.isRecording);
+    this.updateThresholdText();
+    this.el.clipCount.textContent = this.clips.length;
   }
 
-  renderClips() {
-    if (this.clips.length === 0) {
-      this.clipList.innerHTML = '<li class="empty">No recordings yet</li>';
-      this.updateUI(); return;
-    }
-    this.clipList.innerHTML = this.clips.map(c=>`
+  renderClips(){
+    const ul=this.el.clips;
+    if (this.clips.length===0){ ul.innerHTML='<li class="empty">No recordings yet</li>'; this.updateUI(); return; }
+    ul.innerHTML = this.clips.map(c=>`
       <li class="clip">
         <div class="meta">
           <div><strong>${c.display}</strong></div>
-          <div>Peak: ${c.peak.toFixed(3)}</div>
+          <div>Peak: ${c.peak?.toFixed ? c.peak.toFixed(3) : '-'}</div>
         </div>
-        <div>
-          <a href="${c.url}" download="${c.filename}">💾 Download WAV</a>
-        </div>
+        <div><a href="${c.url}" download="${c.filename}">💾 Download WAV</a></div>
       </li>
     `).join('');
     this.updateUI();
-    // save lightweight log (URLs לא נשמרים בין רענונים)
-    try {
-      localStorage.setItem('noiseLoggerClips',
-        JSON.stringify(this.clips.map(({ts,filename,peak,display})=>({ts,filename,peak,display}))));
-    } catch {}
   }
 
-  exportCSV() {
-    if (this.clips.length===0) { alert('No clips'); return; }
-    const csv = 'Timestamp,Filename,Peak\n' +
-      this.clips.map(c=>`${c.ts},${c.filename},${c.peak}`).join('\n');
-    const blob = new Blob([csv],{type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download='noise_log.csv'; document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+  exportClipsCSV(){
+    if (this.clips.length===0){ alert('No clips'); return; }
+    const csv = 'Timestamp,Filename,Peak\n' + this.clips.map(c=>`${c.ts},${c.filename},${c.peak||''}`).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='noise_clips.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+  exportHistoryCSV(){
+    if (this.hist.length===0){ alert('No history'); return; }
+    const csv = 'epochSec,peak,rms\n' + this.hist.map(p=>`${p.t},${p.peak.toFixed(6)},${p.rms.toFixed(6)}`).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='noise_history.csv'; a.click(); URL.revokeObjectURL(url);
   }
 }
 
+/* init */
 window.addEventListener('load', ()=> new NoiseLogger());
 </script>
 </body>
