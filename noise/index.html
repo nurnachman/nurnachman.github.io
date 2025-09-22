@@ -1,163 +1,622 @@
 <!DOCTYPE html>
-<html>
+<html lang="he" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <title>Noise Logger</title>
-  <style>
-    body { font-family: sans-serif; margin: 20px; }
-    button { margin: 5px; padding: 10px; }
-    canvas { border: 1px solid #ccc; width: 100%; height: 100px; }
-    #log { margin-top: 20px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise Logger</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            direction: ltr;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #764ba2;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .stop-btn {
+            background: linear-gradient(45deg, #dc3545, #e74c3c);
+            color: white;
+        }
+
+        .stop-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .export-btn {
+            background: linear-gradient(45deg, #007bff, #6610f2);
+            color: white;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .status.recording {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 2px solid #28a745;
+        }
+
+        .status.stopped {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 2px solid #dc3545;
+        }
+
+        .oscilloscope {
+            width: 100%;
+            height: 200px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            background: #1a1a1a;
+        }
+
+        .clips-section {
+            margin-top: 30px;
+        }
+
+        .clips-section h3 {
+            color: #764ba2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .clips-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 0;
+        }
+
+        .clip-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .clip-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .clip-item:last-child {
+            border-bottom: none;
+        }
+
+        .clip-info {
+            flex-grow: 1;
+        }
+
+        .clip-timestamp {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .clip-peak {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .download-link {
+            padding: 8px 16px;
+            background: linear-gradient(45deg, #17a2b8, #20c997);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(23, 162, 184, 0.4);
+        }
+
+        .threshold-display {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #6c757d;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 200px;
+            }
+            
+            .clip-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <button id="startBtn">Start</button>
-  <button id="stopBtn" disabled>Stop</button>
-  <button id="downloadCsvBtn">Download CSV</button>
-  <canvas id="visual"></canvas>
-  <h3>Clips</h3>
-  <ul id="log"></ul>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 Noise Logger</h1>
+            <p>Peak Detection & Audio Recording System</p>
+        </div>
 
-<script>
-let audioCtx, analyser, processor, source;
-let mediaStream;
-let buffer = [];
-let preSeconds = 3;
-let postSeconds = 3;
-let triggered = false;
-let drawId;
-let logs = JSON.parse(localStorage.getItem("noiseLogs") || "[]");
+        <div class="controls">
+            <button id="startBtn" class="start-btn">🎯 Start Recording</button>
+            <button id="stopBtn" class="stop-btn disabled">⏹️ Stop Recording</button>
+            <button id="exportBtn" class="export-btn">📊 Download CSV</button>
+        </div>
 
-const canvas = document.getElementById("visual");
-const ctx = canvas.getContext("2d");
-const logList = document.getElementById("log");
+        <div id="status" class="status stopped">
+            Status: Stopped
+        </div>
 
-function renderLogs() {
-  logList.innerHTML = "";
-  logs.forEach(item => {
-    let li = document.createElement("li");
-    let a = document.createElement("a");
-    a.href = item.url;
-    a.download = item.filename;
-    a.textContent = `${item.timestamp} (peak=${item.peak.toFixed(3)})`;
-    li.appendChild(a);
-    logList.appendChild(li);
-  });
-}
-renderLogs();
+        <div class="threshold-display">
+            Detection Threshold: <span id="thresholdValue">0.2</span>
+        </div>
 
-document.getElementById("startBtn").onclick = async () => {
-  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  audioCtx = new AudioContext();
-  source = audioCtx.createMediaStreamSource(mediaStream);
-  analyser = audioCtx.createAnalyser();
-  processor = audioCtx.createScriptProcessor(1024, 1, 1);
+        <canvas id="oscilloscope" class="oscilloscope"></canvas>
 
-  source.connect(analyser);
-  analyser.connect(processor);
-  processor.connect(audioCtx.destination);
+        <div class="clips-section">
+            <h3>📁 Recorded Clips (<span id="clipCount">0</span>)</h3>
+            <ul id="clipsList" class="clips-list">
+                <li class="empty-message">No recordings yet. Start recording to detect noise peaks!</li>
+            </ul>
+        </div>
+    </div>
 
-  processor.onaudioprocess = (e) => {
-    let input = e.inputBuffer.getChannelData(0);
-    let peak = Math.max(...input.map(v => Math.abs(v)));
-    buffer.push(...input);
+    <script>
+        class NoiseLogger {
+            constructor() {
+                this.isRecording = false;
+                this.audioContext = null;
+                this.mediaStream = null;
+                this.sourceNode = null;
+                this.processorNode = null;
+                this.analyzer = null;
+                
+                // Configuration
+                this.threshold = 0.2;
+                this.bufferDuration = 3; // seconds before peak
+                this.clipDuration = 6; // total clip duration
+                this.sampleRate = 44100;
+                
+                // Data storage
+                this.audioBuffer = [];
+                this.maxBufferSize = this.bufferDuration * this.sampleRate;
+                this.clips = [];
+                this.isRecordingPeak = false;
+                this.peakRecordingBuffer = [];
+                this.peakStartTime = 0;
+                
+                // UI elements
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.exportBtn = document.getElementById('exportBtn');
+                this.status = document.getElementById('status');
+                this.clipsList = document.getElementById('clipsList');
+                this.clipCount = document.getElementById('clipCount');
+                this.thresholdValue = document.getElementById('thresholdValue');
+                this.canvas = document.getElementById('oscilloscope');
+                this.canvasCtx = this.canvas.getContext('2d');
+                
+                this.initCanvas();
+                this.bindEvents();
+                this.loadClipsFromStorage();
+                this.updateUI();
+            }
 
-    let maxLen = audioCtx.sampleRate * (preSeconds + postSeconds);
-    if (buffer.length > maxLen) buffer.splice(0, buffer.length - maxLen);
+            initCanvas() {
+                this.canvas.width = this.canvas.offsetWidth;
+                this.canvas.height = this.canvas.offsetHeight;
+                this.canvasCtx.fillStyle = '#1a1a1a';
+                this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
 
-    if (!triggered && peak > 0.2) {
-      triggered = true;
-      let ts = new Date().toISOString();
-      let pre = buffer.slice(-audioCtx.sampleRate * preSeconds);
-      let maxPeak = peak;
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.startRecording());
+                this.stopBtn.addEventListener('click', () => this.stopRecording());
+                this.exportBtn.addEventListener('click', () => this.exportCSV());
+                
+                window.addEventListener('resize', () => this.initCanvas());
+                window.addEventListener('beforeunload', () => this.saveClipsToStorage());
+            }
 
-      setTimeout(() => {
-        let clip = pre.concat(buffer.slice(-audioCtx.sampleRate * postSeconds));
-        saveWav(clip, ts, maxPeak);
-        triggered = false;
-      }, postSeconds * 1000);
-    }
-  };
+            async startRecording() {
+                try {
+                    this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false
+                        } 
+                    });
+                    
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: this.sampleRate
+                    });
+                    
+                    this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
+                    this.analyzer = this.audioContext.createAnalyser();
+                    this.analyzer.fftSize = 2048;
+                    this.analyzer.smoothingTimeConstant = 0.3;
+                    
+                    // Create processor for audio data
+                    if (this.audioContext.audioWorklet) {
+                        // Modern approach - would need separate worklet file
+                        // Fallback to ScriptProcessor for simplicity
+                        this.createScriptProcessor();
+                    } else {
+                        this.createScriptProcessor();
+                    }
+                    
+                    this.sourceNode.connect(this.analyzer);
+                    this.sourceNode.connect(this.processorNode);
+                    this.processorNode.connect(this.audioContext.destination);
+                    
+                    this.isRecording = true;
+                    this.updateUI();
+                    this.startVisualization();
+                    
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    alert('Could not access microphone. Please check permissions.');
+                }
+            }
 
-  drawWave();
-  document.getElementById("startBtn").disabled = true;
-  document.getElementById("stopBtn").disabled = false;
-};
+            createScriptProcessor() {
+                this.processorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
+                this.processorNode.onaudioprocess = (event) => this.processAudio(event);
+            }
 
-document.getElementById("stopBtn").onclick = () => {
-  if (processor) processor.disconnect();
-  if (analyser) analyser.disconnect();
-  if (source) source.disconnect();
-  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-  cancelAnimationFrame(drawId);
-  document.getElementById("startBtn").disabled = false;
-  document.getElementById("stopBtn").disabled = true;
-};
+            processAudio(event) {
+                const inputData = event.inputBuffer.getChannelData(0);
+                const bufferLength = inputData.length;
+                
+                // Calculate peak amplitude
+                let peak = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    const amplitude = Math.abs(inputData[i]);
+                    if (amplitude > peak) peak = amplitude;
+                }
+                
+                // Add to ring buffer
+                for (let i = 0; i < bufferLength; i++) {
+                    this.audioBuffer.push(inputData[i]);
+                    if (this.audioBuffer.length > this.maxBufferSize) {
+                        this.audioBuffer.shift();
+                    }
+                }
+                
+                // Check for peak detection
+                if (peak > this.threshold && !this.isRecordingPeak) {
+                    this.startPeakRecording(peak);
+                } else if (this.isRecordingPeak) {
+                    // Continue recording peak
+                    for (let i = 0; i < bufferLength; i++) {
+                        this.peakRecordingBuffer.push(inputData[i]);
+                    }
+                    
+                    const recordingDuration = this.peakRecordingBuffer.length / this.sampleRate;
+                    if (recordingDuration >= this.bufferDuration) {
+                        this.finishPeakRecording();
+                    }
+                }
+            }
 
-document.getElementById("downloadCsvBtn").onclick = () => {
-  let csv = "timestamp,filename,peak\n" + logs.map(l => 
-    `${l.timestamp},${l.filename},${l.peak}`).join("\n");
-  let blob = new Blob([csv], { type: "text/csv" });
-  let url = URL.createObjectURL(blob);
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = "noise_log.csv";
-  a.click();
-};
+            startPeakRecording(peak) {
+                this.isRecordingPeak = true;
+                this.peakRecordingBuffer = [...this.audioBuffer]; // Include pre-buffer
+                this.peakStartTime = Date.now();
+                this.currentPeak = peak;
+                
+                console.log(`Peak detected: ${peak.toFixed(3)}`);
+            }
 
-function drawWave() {
-  let dataArray = new Uint8Array(analyser.fftSize);
-  analyser.getByteTimeDomainData(dataArray);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.beginPath();
-  let sliceWidth = canvas.width / dataArray.length;
-  let x = 0;
-  for (let i=0; i<dataArray.length; i++) {
-    let v = dataArray[i] / 128.0;
-    let y = v * canvas.height/2;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-    x += sliceWidth;
-  }
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "green";
-  ctx.stroke();
-  drawId = requestAnimationFrame(drawWave);
-}
+            finishPeakRecording() {
+                const timestamp = new Date(this.peakStartTime);
+                const filename = `clip_${timestamp.getTime()}.wav`;
+                
+                // Create WAV file
+                const wavBlob = this.createWAVBlob(this.peakRecordingBuffer);
+                const url = URL.createObjectURL(wavBlob);
+                
+                const clip = {
+                    timestamp: timestamp.toISOString(),
+                    filename: filename,
+                    peak: this.currentPeak,
+                    url: url,
+                    displayTime: timestamp.toLocaleString()
+                };
+                
+                this.clips.unshift(clip); // Add to beginning
+                this.updateClipsList();
+                this.saveClipsToStorage();
+                
+                // Reset peak recording
+                this.isRecordingPeak = false;
+                this.peakRecordingBuffer = [];
+            }
 
-function saveWav(samples, ts, peak) {
-  let buffer = new ArrayBuffer(44 + samples.length * 2);
-  let view = new DataView(buffer);
-  let writeStr = (o,s) => { for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+            createWAVBlob(audioData) {
+                const length = audioData.length;
+                const buffer = new ArrayBuffer(44 + length * 2);
+                const view = new DataView(buffer);
+                
+                // WAV header
+                const writeString = (offset, string) => {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                };
+                
+                writeString(0, 'RIFF');
+                view.setUint32(4, 36 + length * 2, true);
+                writeString(8, 'WAVE');
+                writeString(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, this.sampleRate, true);
+                view.setUint32(28, this.sampleRate * 2, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeString(36, 'data');
+                view.setUint32(40, length * 2, true);
+                
+                // Convert float samples to 16-bit PCM
+                let offset = 44;
+                for (let i = 0; i < length; i++) {
+                    const sample = Math.max(-1, Math.min(1, audioData[i]));
+                    view.setInt16(offset, sample * 0x7FFF, true);
+                    offset += 2;
+                }
+                
+                return new Blob([buffer], { type: 'audio/wav' });
+            }
 
-  writeStr(0,"RIFF");
-  view.setUint32(4, 36 + samples.length*2, true);
-  writeStr(8,"WAVEfmt ");
-  view.setUint32(16,16,true);
-  view.setUint16(20,1,true);
-  view.setUint16(22,1,true);
-  view.setUint32(24,44100,true);
-  view.setUint32(28,44100*2,true);
-  view.setUint16(32,2,true);
-  view.setUint16(34,16,true);
-  writeStr(36,"data");
-  view.setUint32(40,samples.length*2,true);
+            startVisualization() {
+                if (!this.isRecording) return;
+                
+                const dataArray = new Uint8Array(this.analyzer.frequencyBinCount);
+                this.analyzer.getByteTimeDomainData(dataArray);
+                
+                this.canvasCtx.fillStyle = '#1a1a1a';
+                this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.canvasCtx.lineWidth = 2;
+                this.canvasCtx.strokeStyle = '#00ff00';
+                this.canvasCtx.beginPath();
+                
+                const sliceWidth = this.canvas.width * 1.0 / dataArray.length;
+                let x = 0;
+                
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * this.canvas.height / 2;
+                    
+                    if (i === 0) {
+                        this.canvasCtx.moveTo(x, y);
+                    } else {
+                        this.canvasCtx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                this.canvasCtx.stroke();
+                
+                // Draw threshold line
+                const thresholdY = this.canvas.height / 2;
+                this.canvasCtx.strokeStyle = '#ff0000';
+                this.canvasCtx.lineWidth = 1;
+                this.canvasCtx.setLineDash([5, 5]);
+                this.canvasCtx.beginPath();
+                this.canvasCtx.moveTo(0, thresholdY - (this.threshold * this.canvas.height / 4));
+                this.canvasCtx.lineTo(this.canvas.width, thresholdY - (this.threshold * this.canvas.height / 4));
+                this.canvasCtx.moveTo(0, thresholdY + (this.threshold * this.canvas.height / 4));
+                this.canvasCtx.lineTo(this.canvas.width, thresholdY + (this.threshold * this.canvas.height / 4));
+                this.canvasCtx.stroke();
+                this.canvasCtx.setLineDash([]);
+                
+                requestAnimationFrame(() => this.startVisualization());
+            }
 
-  let offset=44;
-  for (let i=0; i<samples.length; i++, offset+=2) {
-    let s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-  }
+            stopRecording() {
+                this.isRecording = false;
+                
+                if (this.mediaStream) {
+                    this.mediaStream.getTracks().forEach(track => track.stop());
+                }
+                
+                if (this.audioContext) {
+                    this.audioContext.close();
+                }
+                
+                this.updateUI();
+                this.initCanvas();
+            }
 
-  let blob = new Blob([view], { type: "audio/wav" });
-  let url = URL.createObjectURL(blob);
-  let filename = `clip_${ts}.wav`;
+            updateUI() {
+                if (this.isRecording) {
+                    this.startBtn.classList.add('disabled');
+                    this.stopBtn.classList.remove('disabled');
+                    this.status.textContent = 'Status: Recording...';
+                    this.status.className = 'status recording';
+                } else {
+                    this.startBtn.classList.remove('disabled');
+                    this.stopBtn.classList.add('disabled');
+                    this.status.textContent = 'Status: Stopped';
+                    this.status.className = 'status stopped';
+                }
+                
+                this.thresholdValue.textContent = this.threshold.toFixed(2);
+                this.clipCount.textContent = this.clips.length;
+            }
 
-  let entry = { timestamp: ts, filename, peak, url };
-  logs.push(entry);
-  localStorage.setItem("noiseLogs", JSON.stringify(logs));
-  renderLogs();
-}
-</script>
+            updateClipsList() {
+                if (this.clips.length === 0) {
+                    this.clipsList.innerHTML = '<li class="empty-message">No recordings yet. Start recording to detect noise peaks!</li>';
+                    return;
+                }
+                
+                this.clipsList.innerHTML = this.clips.map(clip => `
+                    <li class="clip-item">
+                        <div class="clip-info">
+                            <div class="clip-timestamp">${clip.displayTime}</div>
+                            <div class="clip-peak">Peak: ${clip.peak.toFixed(3)}</div>
+                        </div>
+                        <a href="${clip.url}" download="${clip.filename}" class="download-link">
+                            💾 Download WAV
+                        </a>
+                    </li>
+                `).join('');
+                
+                this.updateUI();
+            }
+
+            exportCSV() {
+                if (this.clips.length === 0) {
+                    alert('No clips to export!');
+                    return;
+                }
+                
+                const csvHeaders = 'Timestamp,Filename,Peak\n';
+                const csvData = this.clips.map(clip => 
+                    `"${clip.timestamp}","${clip.filename}","${clip.peak}"`
+                ).join('\n');
+                
+                const csvContent = csvHeaders + csvData;
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'noise_log.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            saveClipsToStorage() {
+                const clipsData = this.clips.map(clip => ({
+                    timestamp: clip.timestamp,
+                    filename: clip.filename,
+                    peak: clip.peak,
+                    displayTime: clip.displayTime
+                }));
+                localStorage.setItem('noiseLoggerClips', JSON.stringify(clipsData));
+            }
+
+            loadClipsFromStorage() {
+                const savedClips = localStorage.getItem('noiseLoggerClips');
+                if (savedClips) {
+                    try {
+                        const clipsData = JSON.parse(savedClips);
+                        this.clips = clipsData.map(clip => ({
+                            ...clip,
+                            url: '#' // URLs are not persistent across sessions
+                        }));
+                        this.updateClipsList();
+                    } catch (error) {
+                        console.error('Error loading clips from storage:', error);
+                    }
+                }
+            }
+        }
+
+        // Initialize the application
+        window.addEventListener('load', () => {
+            new NoiseLogger();
+        });
+    </script>
 </body>
 </html>
