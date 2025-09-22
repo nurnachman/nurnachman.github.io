@@ -1,208 +1,338 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Noise Logger</title>
-  <style>
-    body { font-family: sans-serif; margin:0; padding:20px; background:#eee; }
-    .container { max-width:800px; margin:auto; background:white; padding:20px; border-radius:10px; }
-    .controls { display:flex; gap:10px; justify-content:center; margin:20px 0; }
-    button { padding:10px 20px; border:none; border-radius:5px; cursor:pointer; }
-    .start-btn { background:green; color:white; }
-    .stop-btn { background:red; color:white; }
-    .export-btn { background:blue; color:white; }
-    .disabled { opacity:0.5; cursor:not-allowed; }
-    .status { margin:10px 0; font-weight:bold; }
-    canvas { width:100%; height:200px; border:1px solid #ccc; margin:10px 0; }
-    .clips-list { list-style:none; padding:0; }
-    .clip-item { display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ddd; }
-    .empty-message { text-align:center; color:#666; padding:20px; font-style:italic; }
-    @media (max-width:768px){
-      .controls { flex-direction:column; align-items:center; }
-      button { width:200px; }
-      .clip-item { flex-direction:column; align-items:flex-start; gap:10px; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Noise Logger</title>
+<style>
+  :root{--bg:#eee;--fg:#111;--card:#fff;--ok:#2e7d32;--err:#c62828;--accent:#3949ab}
+  body{margin:0;padding:20px;font-family:system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg)}
+  .container{max-width:900px;margin:auto;background:var(--card);border-radius:12px;padding:20px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:16px 0}
+  button{padding:10px 18px;border:0;border-radius:8px;color:#fff;cursor:pointer}
+  .start-btn{background:var(--ok)}
+  .stop-btn{background:var(--err)}
+  .export-btn{background:var(--accent)}
+  .disabled{opacity:.5;cursor:not-allowed}
+  .status{font-weight:700;margin:8px 0}
+  canvas{width:100%;height:220px;border:1px solid #ddd;border-radius:8px;background:#000}
+  .clip-head{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+  .clips{list-style:none;padding:0;margin:10px 0;border:1px solid #e6e6e6;border-radius:8px;max-height:320px;overflow:auto}
+  .clip{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee}
+  .clip:last-child{border-bottom:0}
+  .meta{font-size:14px}
+  .empty{padding:28px;text-align:center;color:#666;font-style:italic}
+  @media (max-width:768px){
+    .controls{flex-direction:column;align-items:center}
+    button{width:220px}
+    .clip{flex-direction:column;align-items:flex-start}
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>🎤 Noise Logger</h1>
-    <div class="controls">
-      <button id="startBtn" class="start-btn">Start</button>
-      <button id="stopBtn" class="stop-btn disabled">Stop</button>
-      <button id="exportBtn" class="export-btn">Download CSV</button>
-    </div>
-    <div id="status" class="status">Status: Stopped</div>
-    <canvas id="oscilloscope"></canvas>
-    <h3>Clips (<span id="clipCount">0</span>)</h3>
-    <ul id="clipsList" class="clips-list">
-      <li class="empty-message">No recordings yet</li>
-    </ul>
+<div class="container">
+  <h1>🎤 Noise Logger</h1>
+
+  <div class="controls">
+    <button id="startBtn" class="start-btn">Start</button>
+    <button id="stopBtn" class="stop-btn disabled">Stop</button>
+    <button id="exportBtn" class="export-btn">Download CSV</button>
   </div>
 
-  <script>
-  class NoiseLogger {
-    constructor() {
-      this.isRecording = false;
-      this.audioContext = null;
-      this.mediaStream = null;
-      this.sourceNode = null;
-      this.processorNode = null;
-      this.analyzer = null;
-      this.zeroGain = null;
+  <div id="status" class="status">Status: Stopped</div>
+  <div>Threshold: <span id="threshView">0.20</span> &nbsp;|&nbsp; Pre-roll: 3s, Post-roll: 3s</div>
+  <canvas id="scope"></canvas>
 
-      this.threshold = 0.2;
-      this.bufferDuration = 3;
-      this.sampleRate = 44100;
-      this.audioBuffer = [];
-      this.maxBufferSize = this.bufferDuration * this.sampleRate;
-      this.clips = [];
+  <div class="clip-head">
+    <h3>Clips (<span id="clipCount">0</span>)</h3>
+    <small id="diag"></small>
+  </div>
+  <ul id="clips" class="clips">
+    <li class="empty">No recordings yet</li>
+  </ul>
+</div>
 
-      this.startBtn = document.getElementById('startBtn');
-      this.stopBtn = document.getElementById('stopBtn');
-      this.exportBtn = document.getElementById('exportBtn');
-      this.status = document.getElementById('status');
-      this.clipsList = document.getElementById('clipsList');
-      this.clipCount = document.getElementById('clipCount');
-      this.canvas = document.getElementById('oscilloscope');
-      this.canvasCtx = this.canvas.getContext('2d');
+<script>
+class NoiseLogger {
+  constructor() {
+    // === config ===
+    this.threshold = 0.20;               // 0..1
+    this.preSeconds = 3;                 // seconds before peak
+    this.postSeconds = 3;                // seconds after peak
+    this.procSize = 2048;
 
-      this.bindEvents();
-      this.initCanvas();
+    // === state ===
+    this.isRecording = false;
+    this.capturing = false;
+    this.audioCtx = null;
+    this.mediaStream = null;
+    this.source = null;
+    this.analyser = null;
+    this.processor = null;
+    this.muteGain = null;
+
+    this.sampleRate = 44100;             // will be overridden by AudioContext
+    this.ring = new Float32Array(1);     // resized in start
+    this.ringWrite = 0;                  // write index
+    this.clips = [];
+    this.captureBuffer = [];             // Float32 chunks during capture
+    this.captureSamplesLeft = 0;
+    this.lastPeak = 0;
+
+    // UI
+    this.status = document.getElementById('status');
+    this.startBtn = document.getElementById('startBtn');
+    this.stopBtn = document.getElementById('stopBtn');
+    this.exportBtn = document.getElementById('exportBtn');
+    this.threshView = document.getElementById('threshView');
+    this.scope = document.getElementById('scope');
+    this.sctx = this.scope.getContext('2d');
+    this.clipList = document.getElementById('clips');
+    this.clipCount = document.getElementById('clipCount');
+    this.diag = document.getElementById('diag');
+
+    this.bind();
+    this.drawScopeInit();
+  }
+
+  bind() {
+    this.startBtn.onclick = () => this.start();
+    this.stopBtn.onclick = () => this.stop();
+    this.exportBtn.onclick = () => this.exportCSV();
+    window.addEventListener('resize', () => this.drawScopeInit());
+  }
+
+  drawScopeInit() {
+    this.scope.width = this.scope.clientWidth;
+    this.scope.height = this.scope.clientHeight;
+    this.sctx.fillStyle = '#000';
+    this.sctx.fillRect(0,0,this.scope.width,this.scope.height);
+  }
+
+  async start() {
+    const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
+    if (!window.isSecureContext && !isLocalhost) {
+      alert('Needs HTTPS or localhost'); return;
     }
-
-    bindEvents() {
-      this.startBtn.onclick = () => this.startRecording();
-      this.stopBtn.onclick = () => this.stopRecording();
-      this.exportBtn.onclick = () => this.exportCSV();
-      window.onresize = () => this.initCanvas();
-    }
-
-    initCanvas() {
-      this.canvas.width = this.canvas.offsetWidth;
-      this.canvas.height = this.canvas.offsetHeight;
-      this.canvasCtx.fillStyle = '#000';
-      this.canvasCtx.fillRect(0,0,this.canvas.width,this.canvas.height);
-    }
-
-    async startRecording() {
-      const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
-      if (!window.isSecureContext && !isLocalhost) {
-        alert('Microphone access requires HTTPS or localhost');
-        return;
-      }
-      if (!navigator.mediaDevices?.getUserMedia) {
-        alert('getUserMedia not available in this browser');
-        return;
-      }
-
+    try {
+      // prefer strict, then fallback to {audio:true}
+      let stream;
       try {
-        // Try strict, then fallback
-        try {
-          this.mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
-          });
-        } catch (e1) {
-          console.warn('strict failed', e1);
-          this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio:true });
-        }
-
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) { alert('Web Audio API not supported'); return; }
-        this.audioContext = new AC();
-        if (this.audioContext.state === 'suspended') await this.audioContext.resume();
-
-        this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-        this.analyzer = this.audioContext.createAnalyser();
-        this.analyzer.fftSize = 2048;
-
-        this.processorNode = this.audioContext.createScriptProcessor(2048,1,1);
-        this.processorNode.onaudioprocess = (e)=>this.processAudio(e);
-
-        this.zeroGain = this.audioContext.createGain();
-        this.zeroGain.gain.value = 0;
-
-        this.sourceNode.connect(this.analyzer);
-        this.sourceNode.connect(this.processorNode);
-        this.processorNode.connect(this.zeroGain);
-        this.zeroGain.connect(this.audioContext.destination);
-
-        this.isRecording = true;
-        this.updateUI();
-        this.visualize();
-
-      } catch(err) {
-        alert(`Failed to start recording:\n${err.name}: ${err.message}`);
-        console.error(err);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({audio:true});
       }
-    }
+      this.mediaStream = stream;
 
-    processAudio(e) {
-      const input = e.inputBuffer.getChannelData(0);
-      let peak=0;
-      for (let i=0;i<input.length;i++) {
-        if (Math.abs(input[i])>peak) peak=Math.abs(input[i]);
-        this.audioBuffer.push(input[i]);
-        if (this.audioBuffer.length > this.maxBufferSize) this.audioBuffer.shift();
-      }
-      if (peak>this.threshold) {
-        console.log('Peak detected', peak.toFixed(2));
-      }
-    }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.audioCtx = new AC();
+      if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+      this.sampleRate = this.audioCtx.sampleRate;
 
-    visualize() {
-      if (!this.isRecording) return;
-      const data = new Uint8Array(this.analyzer.frequencyBinCount);
-      this.analyzer.getByteTimeDomainData(data);
-      this.canvasCtx.fillStyle='#000';
-      this.canvasCtx.fillRect(0,0,this.canvas.width,this.canvas.height);
-      this.canvasCtx.beginPath();
-      this.canvasCtx.strokeStyle='#0f0';
-      const slice = this.canvas.width/data.length;
-      let x=0;
-      for (let i=0;i<data.length;i++){
-        const v=data[i]/128.0;
-        const y=v*this.canvas.height/2;
-        if(i===0) this.canvasCtx.moveTo(x,y);
-        else this.canvasCtx.lineTo(x,y);
-        x+=slice;
-      }
-      this.canvasCtx.stroke();
-      requestAnimationFrame(()=>this.visualize());
-    }
+      // ring buffer sized to preSeconds
+      const ringLen = Math.max(1, Math.floor(this.preSeconds * this.sampleRate));
+      this.ring = new Float32Array(ringLen);
+      this.ringWrite = 0;
 
-    stopRecording() {
-      this.isRecording=false;
-      if(this.mediaStream) this.mediaStream.getTracks().forEach(t=>t.stop());
-      if(this.audioContext) this.audioContext.close();
+      // graph
+      this.source = this.audioCtx.createMediaStreamSource(stream);
+      this.analyser = this.audioCtx.createAnalyser();
+      this.analyser.fftSize = 2048;
+      this.analyser.smoothingTimeConstant = 0.25;
+
+      this.processor = this.audioCtx.createScriptProcessor(this.procSize, 1, 1);
+      this.processor.onaudioprocess = (e)=>this.onAudio(e);
+
+      this.muteGain = this.audioCtx.createGain();
+      this.muteGain.gain.value = 0;
+
+      this.source.connect(this.analyser);
+      this.source.connect(this.processor);
+      this.processor.connect(this.muteGain);
+      this.muteGain.connect(this.audioCtx.destination);
+
+      this.isRecording = true;
       this.updateUI();
-    }
+      this.animateScope();
 
-    updateUI() {
-      if(this.isRecording){
-        this.startBtn.classList.add('disabled');
-        this.stopBtn.classList.remove('disabled');
-        this.status.textContent='Status: Recording...';
-      } else {
-        this.startBtn.classList.remove('disabled');
-        this.stopBtn.classList.add('disabled');
-        this.status.textContent='Status: Stopped';
-      }
-      this.clipCount.textContent=this.clips.length;
-    }
-
-    exportCSV(){
-      if(this.clips.length===0){ alert('No clips'); return; }
-      const csv='Timestamp,Peak\n'+this.clips.map(c=>`${c.timestamp},${c.peak}`).join('\n');
-      const blob=new Blob([csv],{type:'text/csv'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;a.download='noise_log.csv';a.click();
-      URL.revokeObjectURL(url);
+      // quick diag
+      this.diag.textContent = `SR=${this.sampleRate}Hz`;
+    } catch (err) {
+      alert(`Failed to start:\n${err.name}: ${err.message}`);
+      console.error(err);
     }
   }
-  window.onload=()=>new NoiseLogger();
-  </script>
+
+  onAudio(e) {
+    const ch = e.inputBuffer.getChannelData(0);
+    // write into ring (pre-roll)
+    for (let i=0;i<ch.length;i++){
+      this.ring[this.ringWrite] = ch[i];
+      this.ringWrite = (this.ringWrite + 1) % this.ring.length;
+    }
+    // peak detect
+    let peak = 0;
+    for (let i=0;i<ch.length;i++){ const a = Math.abs(ch[i]); if (a>peak) peak=a; }
+    this.lastPeak = peak;
+
+    // start capture if threshold crossed
+    if (!this.capturing && peak >= this.threshold) {
+      this.capturing = true;
+      const pre = this.readRingSnapshot();              // pre-roll copy
+      this.captureBuffer = [pre, ch.slice(0)];          // include current chunk
+      this.captureSamplesLeft = Math.floor(this.postSeconds * this.sampleRate);
+    } else if (this.capturing) {
+      this.captureBuffer.push(ch.slice(0));
+      this.captureSamplesLeft -= ch.length;
+      if (this.captureSamplesLeft <= 0) this.finishCapture();
+    }
+  }
+
+  readRingSnapshot() {
+    // return Float32Array with ring content oldest→newest
+    const out = new Float32Array(this.ring.length);
+    const head = this.ringWrite;
+    const tailCount = this.ring.length - head;
+    out.set(this.ring.subarray(head), 0);
+    out.set(this.ring.subarray(0, head), tailCount);
+    return out;
+  }
+
+  finishCapture() {
+    this.capturing = false;
+    // flatten
+    const total = this.captureBuffer.reduce((n,arr)=>n+arr.length,0);
+    const pcm = new Float32Array(total);
+    let off = 0;
+    for (const arr of this.captureBuffer){ pcm.set(arr, off); off += arr.length; }
+    const wav = this.pcmToWav(pcm, this.sampleRate);
+    const blob = new Blob([wav], {type:'audio/wav'});
+    const url = URL.createObjectURL(blob);
+    const ts = new Date();
+    this.clips.unshift({
+      ts: ts.toISOString(),
+      peak: this.lastPeak,
+      url,
+      filename: `clip_${ts.getTime()}.wav`,
+      display: ts.toLocaleString()
+    });
+    this.renderClips();
+  }
+
+  pcmToWav(float32, sampleRate) {
+    // 16-bit PCM WAV
+    const bytesPerSample = 2;
+    const blockAlign = bytesPerSample * 1;
+    const buffer = new ArrayBuffer(44 + float32.length * bytesPerSample);
+    const view = new DataView(buffer);
+    const writeStr=(o,s)=>{ for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+    let o=0;
+    writeStr(o,'RIFF'); o+=4;
+    view.setUint32(o, 36 + float32.length*bytesPerSample, true); o+=4;
+    writeStr(o,'WAVE'); o+=4;
+    writeStr(o,'fmt '); o+=4;
+    view.setUint32(o,16,true); o+=4;              // PCM fmt chunk size
+    view.setUint16(o,1,true); o+=2;               // PCM
+    view.setUint16(o,1,true); o+=2;               // channels=1
+    view.setUint32(o,sampleRate,true); o+=4;
+    view.setUint32(o,sampleRate*blockAlign,true); o+=4;
+    view.setUint16(o,blockAlign,true); o+=2;
+    view.setUint16(o,bytesPerSample*8,true); o+=2;
+    writeStr(o,'data'); o+=4;
+    view.setUint32(o,float32.length*bytesPerSample,true); o+=4;
+    for (let i=0;i<float32.length;i++,o+=2){
+      const s = Math.max(-1, Math.min(1, float32[i]));
+      view.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return view;
+  }
+
+  // draw at ~24fps (לא מהר מדי)
+  animateScope(prevTs=0) {
+    if (!this.isRecording) return;
+    requestAnimationFrame((ts)=>{
+      if (ts - prevTs >= 1000/24) {
+        const data = new Uint8Array(this.analyser.frequencyBinCount);
+        this.analyser.getByteTimeDomainData(data);
+        const w = this.scope.width, h = this.scope.height;
+        this.sctx.fillStyle = '#000'; this.sctx.fillRect(0,0,w,h);
+        this.sctx.beginPath(); this.sctx.strokeStyle = '#0f0'; this.sctx.lineWidth = 2;
+        const dx = w / data.length;
+        let x = 0;
+        for (let i=0;i<data.length;i++){
+          const v = data[i] / 128.0;
+          const y = v * h/2;
+          if (i===0) this.sctx.moveTo(x,y); else this.sctx.lineTo(x,y);
+          x += dx;
+        }
+        this.sctx.stroke();
+
+        // threshold bands
+        this.sctx.setLineDash([4,4]); this.sctx.strokeStyle = '#f00'; this.sctx.lineWidth = 1;
+        const band = this.threshold * h/4;
+        this.sctx.beginPath();
+        this.sctx.moveTo(0, h/2 - band); this.sctx.lineTo(w, h/2 - band);
+        this.sctx.moveTo(0, h/2 + band); this.sctx.lineTo(w, h/2 + band);
+        this.sctx.stroke(); this.sctx.setLineDash([]);
+      }
+      this.animateScope(ts);
+    });
+  }
+
+  stop() {
+    this.isRecording = false;
+    if (this.mediaStream) this.mediaStream.getTracks().forEach(t=>t.stop());
+    if (this.audioCtx) this.audioCtx.close();
+    this.updateUI();
+  }
+
+  updateUI() {
+    this.status.textContent = this.isRecording ? 'Status: Recording…' : 'Status: Stopped';
+    this.startBtn.classList.toggle('disabled', this.isRecording);
+    this.stopBtn.classList.toggle('disabled', !this.isRecording);
+    this.threshView.textContent = this.threshold.toFixed(2);
+    this.clipCount.textContent = this.clips.length;
+  }
+
+  renderClips() {
+    if (this.clips.length === 0) {
+      this.clipList.innerHTML = '<li class="empty">No recordings yet</li>';
+      this.updateUI(); return;
+    }
+    this.clipList.innerHTML = this.clips.map(c=>`
+      <li class="clip">
+        <div class="meta">
+          <div><strong>${c.display}</strong></div>
+          <div>Peak: ${c.peak.toFixed(3)}</div>
+        </div>
+        <div>
+          <a href="${c.url}" download="${c.filename}">💾 Download WAV</a>
+        </div>
+      </li>
+    `).join('');
+    this.updateUI();
+    // save lightweight log (URLs לא נשמרים בין רענונים)
+    try {
+      localStorage.setItem('noiseLoggerClips',
+        JSON.stringify(this.clips.map(({ts,filename,peak,display})=>({ts,filename,peak,display}))));
+    } catch {}
+  }
+
+  exportCSV() {
+    if (this.clips.length===0) { alert('No clips'); return; }
+    const csv = 'Timestamp,Filename,Peak\n' +
+      this.clips.map(c=>`${c.ts},${c.filename},${c.peak}`).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='noise_log.csv'; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+}
+
+window.addEventListener('load', ()=> new NoiseLogger());
+</script>
 </body>
 </html>
