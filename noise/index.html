@@ -1,721 +1,208 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noise Logger</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            padding: 30px;
-            direction: ltr;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #764ba2;
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-
-        button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-        }
-
-        .start-btn {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-        }
-
-        .start-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
-        }
-
-        .stop-btn {
-            background: linear-gradient(45deg, #dc3545, #e74c3c);
-            color: white;
-        }
-
-        .stop-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
-        }
-
-        .export-btn {
-            background: linear-gradient(45deg, #007bff, #6610f2);
-            color: white;
-        }
-
-        .export-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
-        }
-
-        .disabled {
-            opacity: 0.5;
-            cursor: not-allowed !important;
-            transform: none !important;
-        }
-
-        .status {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 10px;
-            font-weight: bold;
-        }
-
-        .status.recording {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-            border: 2px solid #28a745;
-        }
-
-        .status.stopped {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-            border: 2px solid #dc3545;
-        }
-
-        .oscilloscope {
-            width: 100%;
-            height: 200px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            background: #1a1a1a;
-        }
-
-        .clips-section {
-            margin-top: 30px;
-        }
-
-        .clips-section h3 {
-            color: #764ba2;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .clips-list {
-            list-style: none;
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 0;
-        }
-
-        .clip-item {
-            padding: 15px 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background-color 0.2s;
-        }
-
-        .clip-item:hover {
-            background-color: #f8f9fa;
-        }
-
-        .clip-item:last-child {
-            border-bottom: none;
-        }
-
-        .clip-info {
-            flex-grow: 1;
-        }
-
-        .clip-timestamp {
-            font-weight: bold;
-            color: #495057;
-            margin-bottom: 5px;
-        }
-
-        .clip-peak {
-            color: #6c757d;
-            font-size: 14px;
-        }
-
-        .download-link {
-            padding: 8px 16px;
-            background: linear-gradient(45deg, #17a2b8, #20c997);
-            color: white;
-            text-decoration: none;
-            border-radius: 20px;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-
-        .download-link:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 10px rgba(23, 162, 184, 0.4);
-        }
-
-        .threshold-display {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #6c757d;
-            font-size: 14px;
-        }
-
-        .browser-info {
-            margin-top: 10px;
-            color: #6c757d;
-        }
-
-        .warning {
-            background: rgba(255, 193, 7, 0.1);
-            border: 2px solid #ffc107;
-            color: #856404;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-            
-            .controls {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            button {
-                width: 200px;
-            }
-            
-            .clip-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-        .empty-message {
-            text-align: center;
-            color: #6c757d;
-            padding: 40px 20px;
-            font-style: italic;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noise Logger</title>
+  <style>
+    body { font-family: sans-serif; margin:0; padding:20px; background:#eee; }
+    .container { max-width:800px; margin:auto; background:white; padding:20px; border-radius:10px; }
+    .controls { display:flex; gap:10px; justify-content:center; margin:20px 0; }
+    button { padding:10px 20px; border:none; border-radius:5px; cursor:pointer; }
+    .start-btn { background:green; color:white; }
+    .stop-btn { background:red; color:white; }
+    .export-btn { background:blue; color:white; }
+    .disabled { opacity:0.5; cursor:not-allowed; }
+    .status { margin:10px 0; font-weight:bold; }
+    canvas { width:100%; height:200px; border:1px solid #ccc; margin:10px 0; }
+    .clips-list { list-style:none; padding:0; }
+    .clip-item { display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ddd; }
+    .empty-message { text-align:center; color:#666; padding:20px; font-style:italic; }
+    @media (max-width:768px){
+      .controls { flex-direction:column; align-items:center; }
+      button { width:200px; }
+      .clip-item { flex-direction:column; align-items:flex-start; gap:10px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🎤 Noise Logger</h1>
-            <p>Peak Detection & Audio Recording System</p>
-            <div class="browser-info">
-                <small id="browserInfo"></small>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button id="startBtn" class="start-btn">🎯 Start Recording</button>
-            <button id="stopBtn" class="stop-btn disabled">⏹️ Stop Recording</button>
-            <button id="exportBtn" class="export-btn">📊 Download CSV</button>
-        </div>
-
-        <div id="status" class="status stopped">
-            Status: Stopped
-        </div>
-
-        <div class="threshold-display">
-            Detection Threshold: <span id="thresholdValue">0.2</span>
-        </div>
-
-        <canvas id="oscilloscope" class="oscilloscope"></canvas>
-
-        <div class="clips-section">
-            <h3>📁 Recorded Clips (<span id="clipCount">0</span>)</h3>
-            <ul id="clipsList" class="clips-list">
-                <li class="empty-message">No recordings yet. Start recording to detect noise peaks!</li>
-            </ul>
-        </div>
+  <div class="container">
+    <h1>🎤 Noise Logger</h1>
+    <div class="controls">
+      <button id="startBtn" class="start-btn">Start</button>
+      <button id="stopBtn" class="stop-btn disabled">Stop</button>
+      <button id="exportBtn" class="export-btn">Download CSV</button>
     </div>
+    <div id="status" class="status">Status: Stopped</div>
+    <canvas id="oscilloscope"></canvas>
+    <h3>Clips (<span id="clipCount">0</span>)</h3>
+    <ul id="clipsList" class="clips-list">
+      <li class="empty-message">No recordings yet</li>
+    </ul>
+  </div>
 
-    <script>
-        class NoiseLogger {
-            constructor() {
-                this.isRecording = false;
-                this.audioContext = null;
-                this.mediaStream = null;
-                this.sourceNode = null;
-                this.processorNode = null;
-                this.analyzer = null;
-                
-                // Configuration
-                this.threshold = 0.2;
-                this.bufferDuration = 3; // seconds before peak
-                this.clipDuration = 6; // total clip duration
-                this.sampleRate = 44100;
-                
-                // Data storage
-                this.audioBuffer = [];
-                this.maxBufferSize = this.bufferDuration * this.sampleRate;
-                this.clips = [];
-                this.isRecordingPeak = false;
-                this.peakRecordingBuffer = [];
-                this.peakStartTime = 0;
-                
-                // UI elements
-                this.startBtn = document.getElementById('startBtn');
-                this.stopBtn = document.getElementById('stopBtn');
-                this.exportBtn = document.getElementById('exportBtn');
-                this.status = document.getElementById('status');
-                this.clipsList = document.getElementById('clipsList');
-                this.clipCount = document.getElementById('clipCount');
-                this.thresholdValue = document.getElementById('thresholdValue');
-                this.canvas = document.getElementById('oscilloscope');
-                this.canvasCtx = this.canvas.getContext('2d');
-                
-                this.initCanvas();
-                this.bindEvents();
-                this.loadClipsFromStorage();
-                this.updateUI();
-                this.checkBrowserCompatibility();
-            }
+  <script>
+  class NoiseLogger {
+    constructor() {
+      this.isRecording = false;
+      this.audioContext = null;
+      this.mediaStream = null;
+      this.sourceNode = null;
+      this.processorNode = null;
+      this.analyzer = null;
+      this.zeroGain = null;
 
-            async checkBrowserCompatibility() {
-                const browserInfo = document.getElementById('browserInfo');
-                let warnings = [];
-                
-                // Check HTTPS
-                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.protocol !== 'file:') {
-                    warnings.push('⚠️ HTTPS required for microphone access');
-                }
-                
-                // Check getUserMedia support
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    warnings.push('❌ Browser does not support microphone access');
-                } else {
-                    // Test actual microphone access
-                    try {
-                        const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        testStream.getTracks().forEach(track => track.stop());
-                        console.log('Microphone test successful');
-                    } catch (error) {
-                        console.log('Microphone test failed:', error);
-                        if (error.name === 'NotAllowedError') {
-                            warnings.push('⚠️ Microphone permission required - click "Allow" when prompted');
-                        } else if (error.name === 'NotFoundError') {
-                            warnings.push('❌ No microphone found on this device');
-                        } else if (error.name === 'NotSupportedError') {
-                            warnings.push('❌ Microphone not supported in this browser');
-                        } else if (error.name === 'NotReadableError') {
-                            warnings.push('⚠️ Microphone in use by another application');
-                        } else {
-                            warnings.push('❌ Microphone access failed: ' + error.message);
-                        }
-                    }
-                }
-                
-                // Check AudioContext support
-                if (!window.AudioContext && !window.webkitAudioContext) {
-                    warnings.push('❌ Browser does not support Web Audio API');
-                }
-                
-                if (warnings.length > 0) {
-                    browserInfo.innerHTML = `<div class="warning">${warnings.join('<br>')}</div>`;
-                } else {
-                    browserInfo.innerHTML = '✅ Browser compatible - microphone access available';
-                }
-            }
+      this.threshold = 0.2;
+      this.bufferDuration = 3;
+      this.sampleRate = 44100;
+      this.audioBuffer = [];
+      this.maxBufferSize = this.bufferDuration * this.sampleRate;
+      this.clips = [];
 
-            initCanvas() {
-                this.canvas.width = this.canvas.offsetWidth;
-                this.canvas.height = this.canvas.offsetHeight;
-                this.canvasCtx.fillStyle = '#1a1a1a';
-                this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            }
+      this.startBtn = document.getElementById('startBtn');
+      this.stopBtn = document.getElementById('stopBtn');
+      this.exportBtn = document.getElementById('exportBtn');
+      this.status = document.getElementById('status');
+      this.clipsList = document.getElementById('clipsList');
+      this.clipCount = document.getElementById('clipCount');
+      this.canvas = document.getElementById('oscilloscope');
+      this.canvasCtx = this.canvas.getContext('2d');
 
-            bindEvents() {
-                this.startBtn.addEventListener('click', () => this.startRecording());
-                this.stopBtn.addEventListener('click', () => this.stopRecording());
-                this.exportBtn.addEventListener('click', () => this.exportCSV());
-                
-                window.addEventListener('resize', () => this.initCanvas());
-                window.addEventListener('beforeunload', () => this.saveClipsToStorage());
-            }
+      this.bindEvents();
+      this.initCanvas();
+    }
 
-            async startRecording() {
-                try {
-                    // Check if running in a secure context
-                    if (!window.isSecureContext && location.protocol !== 'file:') {
-                        alert('Microphone access requires HTTPS or local file access.');
-                        return;
-                    }
+    bindEvents() {
+      this.startBtn.onclick = () => this.startRecording();
+      this.stopBtn.onclick = () => this.stopRecording();
+      this.exportBtn.onclick = () => this.exportCSV();
+      window.onresize = () => this.initCanvas();
+    }
 
-                    // Check if getUserMedia is supported
-                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                        alert('Your browser does not support microphone access. Please use Chrome, Firefox, or Safari.');
-                        return;
-                    }
+    initCanvas() {
+      this.canvas.width = this.canvas.offsetWidth;
+      this.canvas.height = this.canvas.offsetHeight;
+      this.canvasCtx.fillStyle = '#000';
+      this.canvasCtx.fillRect(0,0,this.canvas.width,this.canvas.height);
+    }
 
-                    console.log('Requesting microphone access...');
-                    
-                    this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: {
-                            echoCancellation: false,
-                            noiseSuppression: false,
-                            autoGainControl: false
-                        } 
-                    });
-                    
-                    console.log('Microphone stream obtained successfully');
-                    
-                    // Check AudioContext support
-                    if (!window.AudioContext && !window.webkitAudioContext) {
-                        alert('Your browser does not support Web Audio API. Please update your browser.');
-                        return;
-                    }
-                    
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                        sampleRate: this.sampleRate
-                    });
-                    
-                    // Resume audio context if suspended (required by browser policies)
-                    if (this.audioContext.state === 'suspended') {
-                        await this.audioContext.resume();
-                        console.log('AudioContext resumed');
-                    }
-                    
-                    this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-                    this.analyzer = this.audioContext.createAnalyser();
-                    this.analyzer.fftSize = 2048;
-                    this.analyzer.smoothingTimeConstant = 0.3;
-                    
-                    this.createScriptProcessor();
-                    
-                    this.sourceNode.connect(this.analyzer);
-                    this.sourceNode.connect(this.processorNode);
-                    // Don't connect to destination to avoid feedback
-                    
-                    this.isRecording = true;
-                    this.updateUI();
-                    this.startVisualization();
-                    
-                    console.log('Recording started successfully');
-                    
-                } catch (error) {
-                    console.error('Error starting recording:', error);
-                    let errorMessage = 'Failed to start recording:\n\n';
-                    
-                    if (error.name === 'NotAllowedError') {
-                        errorMessage += 'Microphone permission denied.\n\nPlease:\n1. Click "Allow" when prompted for microphone access\n2. Check browser settings to ensure microphone is not blocked\n3. Try refreshing the page';
-                    } else if (error.name === 'NotFoundError') {
-                        errorMessage += 'No microphone found.\n\nPlease:\n1. Connect a microphone to your device\n2. Check that your microphone is working in other apps\n3. Try refreshing the page';
-                    } else if (error.name === 'NotSupportedError') {
-                        errorMessage += 'Microphone not supported by your browser.\n\nPlease try:\n1. Chrome (recommended)\n2. Firefox\n3. Safari (iOS/macOS)';
-                    } else if (error.name === 'NotReadableError') {
-                        errorMessage += 'Microphone is busy.\n\nPlease:\n1. Close other apps using the microphone\n2. Restart your browser\n3. Try again';
-                    } else {
-                        errorMessage += `Technical error: ${error.message || 'Unknown error'}\n\nTry:\n1. Refreshing the page\n2. Using a different browser\n3. Checking browser console for details`;
-                    }
-                    
-                    alert(errorMessage);
-                }
-            }
+    async startRecording() {
+      const isLocalhost = ['localhost','127.0.0.1','::1'].includes(location.hostname);
+      if (!window.isSecureContext && !isLocalhost) {
+        alert('Microphone access requires HTTPS or localhost');
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        alert('getUserMedia not available in this browser');
+        return;
+      }
 
-            createScriptProcessor() {
-                this.processorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
-                this.processorNode.onaudioprocess = (event) => this.processAudio(event);
-            }
-
-            processAudio(event) {
-                const inputData = event.inputBuffer.getChannelData(0);
-                const bufferLength = inputData.length;
-                
-                // Calculate peak amplitude
-                let peak = 0;
-                for (let i = 0; i < bufferLength; i++) {
-                    const amplitude = Math.abs(inputData[i]);
-                    if (amplitude > peak) peak = amplitude;
-                }
-                
-                // Add to ring buffer
-                for (let i = 0; i < bufferLength; i++) {
-                    this.audioBuffer.push(inputData[i]);
-                    if (this.audioBuffer.length > this.maxBufferSize) {
-                        this.audioBuffer.shift();
-                    }
-                }
-                
-                // Check for peak detection
-                if (peak > this.threshold && !this.isRecordingPeak) {
-                    this.startPeakRecording(peak);
-                } else if (this.isRecordingPeak) {
-                    // Continue recording peak
-                    for (let i = 0; i < bufferLength; i++) {
-                        this.peakRecordingBuffer.push(inputData[i]);
-                    }
-                    
-                    const recordingDuration = this.peakRecordingBuffer.length / this.sampleRate;
-                    if (recordingDuration >= this.bufferDuration) {
-                        this.finishPeakRecording();
-                    }
-                }
-            }
-
-            startPeakRecording(peak) {
-                this.isRecordingPeak = true;
-                this.peakRecordingBuffer = [...this.audioBuffer]; // Include pre-buffer
-                this.peakStartTime = Date.now();
-                this.currentPeak = peak;
-                
-                console.log(`Peak detected: ${peak.toFixed(3)}`);
-            }
-
-            finishPeakRecording() {
-                const timestamp = new Date(this.peakStartTime);
-                const filename = `clip_${timestamp.getTime()}.wav`;
-                
-                // Create WAV file
-                const wavBlob = this.createWAVBlob(this.peakRecordingBuffer);
-                const url = URL.createObjectURL(wavBlob);
-                
-                const clip = {
-                    timestamp: timestamp.toISOString(),
-                    filename: filename,
-                    peak: this.currentPeak,
-                    url: url,
-                    displayTime: timestamp.toLocaleString()
-                };
-                
-                this.clips.unshift(clip); // Add to beginning
-                this.updateClipsList();
-                this.saveClipsToStorage();
-                
-                // Reset peak recording
-                this.isRecordingPeak = false;
-                this.peakRecordingBuffer = [];
-            }
-
-            createWAVBlob(audioData) {
-                const length = audioData.length;
-                const buffer = new ArrayBuffer(44 + length * 2);
-                const view = new DataView(buffer);
-                
-                // WAV header
-                const writeString = (offset, string) => {
-                    for (let i = 0; i < string.length; i++) {
-                        view.setUint8(offset + i, string.charCodeAt(i));
-                    }
-                };
-                
-                writeString(0, 'RIFF');
-                view.setUint32(4, 36 + length * 2, true);
-                writeString(8, 'WAVE');
-                writeString(12, 'fmt ');
-                view.setUint32(16, 16, true);
-                view.setUint16(20, 1, true);
-                view.setUint16(22, 1, true);
-                view.setUint32(24, this.sampleRate, true);
-                view.setUint32(28, this.sampleRate * 2, true);
-                view.setUint16(32, 2, true);
-                view.setUint16(34, 16, true);
-                writeString(36, 'data');
-                view.setUint32(40, length * 2, true);
-                
-                // Convert float samples to 16-bit PCM
-                let offset = 44;
-                for (let i = 0; i < length; i++) {
-                    const sample = Math.max(-1, Math.min(1, audioData[i]));
-                    view.setInt16(offset, sample * 0x7FFF, true);
-                    offset += 2;
-                }
-                
-                return new Blob([buffer], { type: 'audio/wav' });
-            }
-
-            startVisualization() {
-                if (!this.isRecording) return;
-                
-                const dataArray = new Uint8Array(this.analyzer.frequencyBinCount);
-                this.analyzer.getByteTimeDomainData(dataArray);
-                
-                this.canvasCtx.fillStyle = '#1a1a1a';
-                this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                this.canvasCtx.lineWidth = 2;
-                this.canvasCtx.strokeStyle = '#00ff00';
-                this.canvasCtx.beginPath();
-                
-                const sliceWidth = this.canvas.width * 1.0 / dataArray.length;
-                let x = 0;
-                
-                for (let i = 0; i < dataArray.length; i++) {
-                    const v = dataArray[i] / 128.0;
-                    const y = v * this.canvas.height / 2;
-                    
-                    if (i === 0) {
-                        this.canvasCtx.moveTo(x, y);
-                    } else {
-                        this.canvasCtx.lineTo(x, y);
-                    }
-                    
-                    x += sliceWidth;
-                }
-                
-                this.canvasCtx.stroke();
-                
-                // Draw threshold line
-                const thresholdY = this.canvas.height / 2;
-                this.canvasCtx.strokeStyle = '#ff0000';
-                this.canvasCtx.lineWidth = 1;
-                this.canvasCtx.setLineDash([5, 5]);
-                this.canvasCtx.beginPath();
-                this.canvasCtx.moveTo(0, thresholdY - (this.threshold * this.canvas.height / 4));
-                this.canvasCtx.lineTo(this.canvas.width, thresholdY - (this.threshold * this.canvas.height / 4));
-                this.canvasCtx.moveTo(0, thresholdY + (this.threshold * this.canvas.height / 4));
-                this.canvasCtx.lineTo(this.canvas.width, thresholdY + (this.threshold * this.canvas.height / 4));
-                this.canvasCtx.stroke();
-                this.canvasCtx.setLineDash([]);
-                
-                requestAnimationFrame(() => this.startVisualization());
-            }
-
-            stopRecording() {
-                this.isRecording = false;
-                
-                if (this.mediaStream) {
-                    this.mediaStream.getTracks().forEach(track => track.stop());
-                }
-                
-                if (this.audioContext) {
-                    this.audioContext.close();
-                }
-                
-                this.updateUI();
-                this.initCanvas();
-            }
-
-            updateUI() {
-                if (this.isRecording) {
-                    this.startBtn.classList.add('disabled');
-                    this.stopBtn.classList.remove('disabled');
-                    this.status.textContent = 'Status: Recording...';
-                    this.status.className = 'status recording';
-                } else {
-                    this.startBtn.classList.remove('disabled');
-                    this.stopBtn.classList.add('disabled');
-                    this.status.textContent = 'Status: Stopped';
-                    this.status.className = 'status stopped';
-                }
-                
-                this.thresholdValue.textContent = this.threshold.toFixed(2);
-                this.clipCount.textContent = this.clips.length;
-            }
-
-            updateClipsList() {
-                if (this.clips.length === 0) {
-                    this.clipsList.innerHTML = '<li class="empty-message">No recordings yet. Start recording to detect noise peaks!</li>';
-                    return;
-                }
-                
-                this.clipsList.innerHTML = this.clips.map(clip => `
-                    <li class="clip-item">
-                        <div class="clip-info">
-                            <div class="clip-timestamp">${clip.displayTime}</div>
-                            <div class="clip-peak">Peak: ${clip.peak.toFixed(3)}</div>
-                        </div>
-                        <a href="${clip.url}" download="${clip.filename}" class="download-link">
-                            💾 Download WAV
-                        </a>
-                    </li>
-                `).join('');
-                
-                this.updateUI();
-            }
-
-            exportCSV() {
-                if (this.clips.length === 0) {
-                    alert('No clips to export!');
-                    return;
-                }
-                
-                const csvHeaders = 'Timestamp,Filename,Peak\n';
-                const csvData = this.clips.map(clip => 
-                    `"${clip.timestamp}","${clip.filename}","${clip.peak}"`
-                ).join('\n');
-                
-                const csvContent = csvHeaders + csvData;
-                const blob = new Blob([csvContent], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'noise_log.csv';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            saveClipsToStorage() {
-                const clipsData = this.clips.map(clip => ({
-                    timestamp: clip.timestamp,
-                    filename: clip.filename,
-                    peak: clip.peak,
-                    displayTime: clip.displayTime
-                }));
-                localStorage.setItem('noiseLoggerClips', JSON.stringify(clipsData));
-            }
-
-            loadClipsFromStorage() {
-                const savedClips = localStorage.getItem('noiseLoggerClips');
-                if (savedClips) {
-                    try {
-                        const clipsData = JSON.parse(savedClips);
-                        this.clips = clipsData.map(clip => ({
-                            ...clip,
-                            url: '#' // URLs are not persistent across sessions
-                        }));
-                        this.updateClipsList();
-                    } catch (error) {
-                        console.error('Error loading clips from storage:', error);
-                    }
-                }
-            }
+      try {
+        // Try strict, then fallback
+        try {
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+          });
+        } catch (e1) {
+          console.warn('strict failed', e1);
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio:true });
         }
 
-        // Initialize the application
-        window.addEventListener('load', () => {
-            new NoiseLogger();
-        });
-    </script>
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { alert('Web Audio API not supported'); return; }
+        this.audioContext = new AC();
+        if (this.audioContext.state === 'suspended') await this.audioContext.resume();
+
+        this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
+        this.analyzer = this.audioContext.createAnalyser();
+        this.analyzer.fftSize = 2048;
+
+        this.processorNode = this.audioContext.createScriptProcessor(2048,1,1);
+        this.processorNode.onaudioprocess = (e)=>this.processAudio(e);
+
+        this.zeroGain = this.audioContext.createGain();
+        this.zeroGain.gain.value = 0;
+
+        this.sourceNode.connect(this.analyzer);
+        this.sourceNode.connect(this.processorNode);
+        this.processorNode.connect(this.zeroGain);
+        this.zeroGain.connect(this.audioContext.destination);
+
+        this.isRecording = true;
+        this.updateUI();
+        this.visualize();
+
+      } catch(err) {
+        alert(`Failed to start recording:\n${err.name}: ${err.message}`);
+        console.error(err);
+      }
+    }
+
+    processAudio(e) {
+      const input = e.inputBuffer.getChannelData(0);
+      let peak=0;
+      for (let i=0;i<input.length;i++) {
+        if (Math.abs(input[i])>peak) peak=Math.abs(input[i]);
+        this.audioBuffer.push(input[i]);
+        if (this.audioBuffer.length > this.maxBufferSize) this.audioBuffer.shift();
+      }
+      if (peak>this.threshold) {
+        console.log('Peak detected', peak.toFixed(2));
+      }
+    }
+
+    visualize() {
+      if (!this.isRecording) return;
+      const data = new Uint8Array(this.analyzer.frequencyBinCount);
+      this.analyzer.getByteTimeDomainData(data);
+      this.canvasCtx.fillStyle='#000';
+      this.canvasCtx.fillRect(0,0,this.canvas.width,this.canvas.height);
+      this.canvasCtx.beginPath();
+      this.canvasCtx.strokeStyle='#0f0';
+      const slice = this.canvas.width/data.length;
+      let x=0;
+      for (let i=0;i<data.length;i++){
+        const v=data[i]/128.0;
+        const y=v*this.canvas.height/2;
+        if(i===0) this.canvasCtx.moveTo(x,y);
+        else this.canvasCtx.lineTo(x,y);
+        x+=slice;
+      }
+      this.canvasCtx.stroke();
+      requestAnimationFrame(()=>this.visualize());
+    }
+
+    stopRecording() {
+      this.isRecording=false;
+      if(this.mediaStream) this.mediaStream.getTracks().forEach(t=>t.stop());
+      if(this.audioContext) this.audioContext.close();
+      this.updateUI();
+    }
+
+    updateUI() {
+      if(this.isRecording){
+        this.startBtn.classList.add('disabled');
+        this.stopBtn.classList.remove('disabled');
+        this.status.textContent='Status: Recording...';
+      } else {
+        this.startBtn.classList.remove('disabled');
+        this.stopBtn.classList.add('disabled');
+        this.status.textContent='Status: Stopped';
+      }
+      this.clipCount.textContent=this.clips.length;
+    }
+
+    exportCSV(){
+      if(this.clips.length===0){ alert('No clips'); return; }
+      const csv='Timestamp,Peak\n'+this.clips.map(c=>`${c.timestamp},${c.peak}`).join('\n');
+      const blob=new Blob([csv],{type:'text/csv'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='noise_log.csv';a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+  window.onload=()=>new NoiseLogger();
+  </script>
 </body>
 </html>
