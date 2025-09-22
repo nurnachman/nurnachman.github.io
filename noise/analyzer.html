@@ -3,43 +3,44 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Sleep Noise Analyzer – JavaScript (Offline)</title>
+<title>Sleep Noise Analyzer – Offline</title>
 <style>
-  :root{--card:#fff;--bg:#f4f6f8;--fg:#111;--ok:#2e7d32;--warn:#ef6c00;--brand:#3949ab}
+  :root{--card:#fff;--bg:#f6f8fa;--fg:#111;--brand:#3b82f6;--ok:#16a34a;--muted:#64748b}
   body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Arial}
-  .wrap{max-width:1000px;margin:auto;padding:20px}
-  .card{background:var(--card);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);padding:16px}
-  h1{margin:0 0 10px}
+  .wrap{max-width:1100px;margin:auto;padding:16px}
+  .card{background:var(--card);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.07);padding:14px}
+  h1{margin:0 0 6px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .controls{justify-content:space-between}
   .drop{border:2px dashed #cbd5e1;border-radius:10px;padding:20px;text-align:center;color:#475569;background:#fff}
   .drop.highlight{background:#eef2ff;border-color:#94a3b8}
   input[type=file]{display:none}
   button{padding:10px 16px;border:0;border-radius:8px;color:#fff;background:var(--brand);cursor:pointer}
-  button.secondary{background:#64748b}
+  button.secondary{background:#94a3b8;color:#0b1320}
   button.ok{background:var(--ok)}
-  .small{font-size:13px;opacity:.85}
+  .small{font-size:13px;opacity:.9}
   label{display:inline-flex;align-items:center;gap:6px}
-  input[type=number]{width:80px;padding:6px;border-radius:6px;border:1px solid #cbd5e1}
+  input[type=number]{width:88px;padding:6px;border-radius:6px;border:1px solid #cbd5e1}
   .grid{display:grid;grid-template-columns:1fr 320px;gap:12px}
-  canvas{width:100%;height:280px;border:1px solid #e2e8f0;border-radius:8px;background:#000}
-  .log{background:#0b1020;color:#cfe3ff;border-radius:8px;padding:10px;height:140px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  canvas{width:100%;height:300px;border:1px solid #e2e8f0;border-radius:8px;background:#000}
+  .log{background:#0b1020;color:#cfe3ff;border-radius:8px;padding:10px;height:150px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:12px}
   table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{border-bottom:1px solid #eee;padding:6px;text-align:right}
-  .right{display:flex;gap:8px;justify-content:flex-end}
-  .muted{opacity:.75}
+  th,td{border-bottom:1px solid #eee;padding:6px;text-align:right;white-space:nowrap}
+  th{position:sticky;top:0;background:#fff}
+  .muted{color:var(--muted)}
+  .tag{display:inline-block;padding:.1rem .4rem;border-radius:6px;background:#eef2ff;color:#334155;margin-inline-start:6px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>Sleep Noise Analyzer – JavaScript (Offline)</h1>
+    <h1>Sleep Noise Analyzer – Offline</h1>
     <div class="row controls">
       <div class="row">
-        <label>Δ dB (sustained): <input id="dbDelta" type="number" step="0.1" value="2.5"></label>
-        <label>Min sustained (sec): <input id="minLong" type="number" step="1" value="60"></label>
-        <label>Baseline (sec): <input id="baseSec" type="number" step="10" value="120"></label>
-        <label>Transient q (0–1): <input id="transQ" type="number" step="0.001" value="0.98"></label>
+        <label>Δ dB (sustained) <input id="dbDelta" type="number" step="0.1" value="2.5"></label>
+        <label>Min sustained (s) <input id="minLong" type="number" step="1" value="60"></label>
+        <label>Baseline (s) <input id="baseSec" type="number" step="10" value="120"></label>
+        <label>Transient q (0–1) <input id="transQ" type="number" step="0.001" value="0.98"></label>
       </div>
       <div class="row">
         <button id="pick" class="secondary">בחר קבצים…</button>
@@ -56,7 +57,7 @@
     <div class="grid" style="margin-top:12px">
       <div class="card" style="padding:10px">
         <canvas id="plot"></canvas>
-        <div class="right" style="margin-top:8px">
+        <div class="row" style="justify-content:flex-end;margin-top:8px">
           <button id="savePng" class="secondary">Save PNG</button>
           <button id="saveCsv" class="secondary">Save CSV</button>
           <button id="saveJson" class="secondary">Save JSON</button>
@@ -79,11 +80,15 @@
     <div class="card" style="margin-top:12px">
       <div class="row" style="justify-content:space-between">
         <strong>Events</strong>
-        <span class="small muted">sustained (low-freq) / transient / speech / shout / dog_bark</span>
+        <span class="small muted">חפיפות מותרות – אם יש AC+נביחות, תראה שתי שורות חופפות</span>
       </div>
-      <div style="max-height:260px;overflow:auto;margin-top:6px">
+      <div style="max-height:320px;overflow:auto;margin-top:6px">
         <table id="eventsTbl">
-          <thead><tr><th>t0 [s]</th><th>t1 [s]</th><th>kind</th><th>peak</th></tr></thead>
+          <thead>
+            <tr>
+              <th>t0 [s]</th><th>t1 [s]</th><th>kind</th><th>confidence</th><th>overlap</th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
@@ -93,38 +98,35 @@
 </div>
 
 <script>
-// --- utility ---
+// ---------- UI helpers ----------
 const logEl = document.getElementById('log');
 function logln(s){ logEl.textContent += s + "\n"; logEl.scrollTop = logEl.scrollHeight; }
-function fmt(n){ return (Math.round(n*100)/100).toFixed(2); }
+function fmt(n, d=2){ return (Math.round(n*10**d)/10**d).toFixed(d); }
 
-// --- file input / DnD ---
+// files
 const drop = document.getElementById('drop');
 const fileInput = document.getElementById('fileInput');
 const pickBtn = document.getElementById('pick');
 const analyzeBtn = document.getElementById('analyze');
 const filesList = document.getElementById('filesList');
-
 let files = [];
 
 pickBtn.onclick = ()=> fileInput.click();
 fileInput.onchange = (e)=> setFiles([...e.target.files]);
-
 ;['dragenter','dragover'].forEach(ev=> drop.addEventListener(ev, (e)=>{ e.preventDefault(); drop.classList.add('highlight'); }));
 ;['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, (e)=>{ e.preventDefault(); drop.classList.remove('highlight'); }));
 drop.addEventListener('drop', (e)=>{
-  const f = [...e.dataTransfer.files].filter(x=>x.type.startsWith('audio/') || x.name.match(/\.(wav|mp3|m4a|aac|ogg|opus|flac|webm|wma)$/i));
+  const f = [...e.dataTransfer.files].filter(x=>x.type.startsWith('audio/') || x.name.match(/\.(wav|mp3|m4a|aac|ogg|opus|flac|webm|wma|mp4|mkv|3gp)$/i));
   setFiles(f);
 });
 drop.addEventListener('click', ()=> fileInput.click());
-
 function setFiles(f){
   files = f;
   filesList.innerHTML = files.length ? files.map(x=>`<li>${x.name} <span class="muted">(${Math.round(x.size/1024)} KB)</span></li>`).join('') : '<li>—</li>';
   logln(`[i] selected ${files.length} file(s)`);
 }
 
-// --- plotting ---
+// plot
 const canvas = document.getElementById('plot');
 const ctx = canvas.getContext('2d');
 function resizeCanvas(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
@@ -135,108 +137,108 @@ function drawPlot(time, lfDb, thr, events){
   if (!lfDb || lfDb.length===0){ ctx.fillStyle='#999'; ctx.fillText('No data', 10, 20); return; }
   const pad=8, w=canvas.width, h=canvas.height;
   const t0 = time[0], t1 = time[time.length-1], span = Math.max(1e-6, t1-t0);
-  const minVal = Math.min(...lfDb), maxVal = Math.max(...lfDb, (thr?Math.max(...thr): -999));
+  const minVal = Math.min(...lfDb), maxVal = Math.max(...lfDb, (thr?Math.max(...thr):-999));
   const ymap = v => (h-pad) - ( (v - minVal) / Math.max(1e-9, (maxVal-minVal)) ) * (h-2*pad);
   const xmap = t => pad + ((t - t0)/span) * (w-2*pad);
 
-  // events shading
-  ctx.fillStyle='rgba(255,165,0,0.18)';
+  // shade events
+  const colors = {low_freq_sustained:'rgba(255,165,0,0.16)', dog_bark:'rgba(255,99,71,0.18)', car_horn:'rgba(255,215,0,0.18)',
+                  speech:'rgba(0,255,255,0.14)', shout:'rgba(0,200,255,0.18)', knock:'rgba(180,180,255,0.20)',
+                  water:'rgba(0,150,255,0.12)', ac:'rgba(0,255,0,0.10)', cat:'rgba(255,105,180,0.16)',
+                  flatulence:'rgba(160,82,45,0.20)', plane_landing:'rgba(255,140,0,0.12)'};
   (events||[]).forEach(ev=>{
-    if (ev.kind==='low_freq_sustained' || ev.kind==='dog_bark' || ev.kind==='speech' || ev.kind==='shout'){
-      const x1=xmap(ev.t0), x2=xmap(ev.t1);
-      ctx.fillRect(x1, pad, Math.max(1,x2-x1), h-2*pad);
-    }
+    const x1=xmap(ev.t0), x2=xmap(ev.t1);
+    ctx.fillStyle = colors[ev.kind] || 'rgba(255,255,255,0.1)';
+    ctx.fillRect(x1, pad, Math.max(1,x2-x1), h-2*pad);
   });
 
-  // lfDb line
-  ctx.strokeStyle='#0f0'; ctx.lineWidth=1; ctx.beginPath();
-  for (let i=0;i<lfDb.length;i++){
-    const x = xmap(time[i]), y = ymap(lfDb[i]);
-    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
+  // lfDb
+  ctx.strokeStyle='#00ff00'; ctx.lineWidth=1; ctx.beginPath();
+  for (let i=0;i<lfDb.length;i++){ const x=xmap(time[i]), y=ymap(lfDb[i]); if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
   ctx.stroke();
 
   // threshold
   if (thr){
-    ctx.strokeStyle='#66a3ff'; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.beginPath();
-    for (let i=0;i<thr.length;i++){
-      const x = xmap(time[i]), y = ymap(thr[i]);
-      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    }
+    ctx.strokeStyle='#66a3ff'; ctx.setLineDash([4,3]); ctx.beginPath();
+    for (let i=0;i<thr.length;i++){ const x=xmap(time[i]), y=ymap(thr[i]); if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
     ctx.stroke(); ctx.setLineDash([]);
   }
 
   // axes
   ctx.fillStyle='#9aa6b2'; ctx.font='12px system-ui';
-  ctx.fillText(`${fmt(t0)}s`, pad, h-4);
-  ctx.fillText(`${fmt(t1)}s`, w-40, h-4);
-  ctx.fillText(`${fmt(maxVal)} dB`, 6, 12);
-  ctx.fillText(`${fmt(minVal)} dB`, 6, h-6);
+  ctx.fillText(`${fmt(t0)}s`, pad, h-4); ctx.fillText(`${fmt(t1)}s`, w-40, h-4);
+  ctx.fillText(`${fmt(maxVal)} dB`, 6, 12); ctx.fillText(`${fmt(minVal)} dB`, 6, h-6);
 }
 
-// --- downloads ---
+// table
+const eventsTblBody = document.querySelector('#eventsTbl tbody');
+function renderEventsTable(events){
+  // compute overlaps
+  const rows = events.map((e,i)=>{
+    let overlap = false;
+    for (let j=0;j<events.length;j++){
+      if (j===i) continue;
+      const a0=e.t0, a1=e.t1, b0=events[j].t0, b1=events[j].t1;
+      if (Math.max(a0,b0) < Math.min(a1,b1)){ overlap = true; break; }
+    }
+    return {...e, overlap};
+  });
+  eventsTblBody.innerHTML = rows.map(e=>`<tr>
+      <td>${fmt(e.t0)}</td>
+      <td>${fmt(e.t1)}</td>
+      <td>${e.kind}</td>
+      <td>${e.peak!==undefined ? fmt(e.peak, e.kind==='transient'?6:2) : ''}</td>
+      <td>${e.overlap? 'yes' : 'no'}</td>
+    </tr>`).join('');
+}
+
+// downloads
 const savePng = document.getElementById('savePng');
 const saveCsv = document.getElementById('saveCsv');
 const saveJson = document.getElementById('saveJson');
-
 function downloadBlob(data, name, type){
   const url = URL.createObjectURL(new Blob([data], {type}));
-  const a = document.createElement('a'); a.href=url; a.download=name; a.click();
-  URL.revokeObjectURL(url);
+  const a = document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
 }
 
-// --- events table ---
-const eventsTblBody = document.querySelector('#eventsTbl tbody');
-function renderEventsTable(events){
-  eventsTblBody.innerHTML = (events||[]).map(e=>`<tr><td>${fmt(e.t0)}</td><td>${fmt(e.t1)}</td><td>${e.kind}</td><td>${e.peak ?? ''}</td></tr>`).join('');
-}
-
-// --- Worker code (as Blob) ---
+// ---------- Worker (all detectors; overlapping allowed) ----------
 const workerCode = `
 self.onmessage = (e)=>{
-  const { pcm, sr, nfft, hop, baseSec, dbDelta, minLongSec, transQ } = e.data;
-  const x = new Float32Array(pcm);
-  const win = nfft|0; const H = hop|0;
-  // STFT power
-  const frames = Math.floor((x.length - win)/H)+1;
-  const S = new Float32Array((win/2)*frames);
-  const hann = new Float32Array(win); for (let n=0;n<win;n++) hann[n]=0.5-0.5*Math.cos(2*Math.PI*n/(win-1));
-  // tiny FFT (radix-2)
-  const N = win, cos=new Float32Array(N/2), sin=new Float32Array(N/2);
+  const P = Object.assign({nfft:1024, hop:256, baseSec:120, dbDelta:2.5, minLongSec:60, transQ:0.98}, e.data);
+  const x = new Float32Array(P.pcm), sr=P.sr|0, N=P.nfft|0, H=P.hop|0;
+  const frames = Math.max(0, Math.floor((x.length - N)/H)+1);
+  const S = new Float32Array((N/2)*frames);
+  const hann = new Float32Array(N); for (let n=0;n<N;n++) hann[n]=0.5-0.5*Math.cos(2*Math.PI*n/(N-1));
+  const re=new Float32Array(N), im=new Float32Array(N);
+  const cos=new Float32Array(N/2), sin=new Float32Array(N/2);
   for (let k=0;k<N/2;k++){ const a=-2*Math.PI*k/N; cos[k]=Math.cos(a); sin[k]=Math.sin(a); }
-  const re = new Float32Array(N), im = new Float32Array(N);
   function fft(){
     let j=0;
-    for (let i=1;i<N;i++){
-      let bit=N>>1;
-      for (; j&bit; bit>>=1) j^=bit;
-      j^=bit;
-      if (i<j){ const tr=re[i]; re[i]=re[j]; re[j]=tr; const ti=im[i]; im[i]=im[j]; im[j]=ti; }
+    for (let i=1;i<N;i++){ let bit=N>>1; for (; j&bit; bit>>=1) j^=bit; j^=bit;
+      if (i<j){ let tr=re[i]; re[i]=re[j]; re[j]=tr; let ti=im[i]; im[i]=im[j]; im[j]=ti; }
     }
     for (let len=2; len<=N; len<<=1){
       const half=len>>1, step=N/len;
       for (let i=0;i<N;i+=len){
-        let k=0;
+        let kk=0;
         for (let j2=0;j2<half;j2++){
-          const c=cos[k], s=sin[k];
+          const c=cos[kk], s=sin[kk];
           const ur=re[i+j2], ui=im[i+j2];
           const vr=re[i+j2+half]*c - im[i+j2+half]*s;
           const vi=re[i+j2+half]*s + im[i+j2+half]*c;
           re[i+j2]=ur+vr; im[i+j2]=ui+vi;
-          re[i+j2+half]=ur-vr; im[i+j2+half]=ui-vi;
-          k+=step;
+          re[i+j2+half]=ur-vr; im[i+j2+half]=ui-vi; kk+=step;
         }
       }
     }
   }
-  function hz2bin(hz){ return Math.max(1, Math.min((N>>1)-1, Math.round(hz*N/sr))); }
-  function toDb(p){ return 10*Math.log10(Math.max(1e-12, p)); }
+  const toDb = p => 10*Math.log10(Math.max(1e-12, p));
+  const hz2bin = hz => Math.max(1, Math.min((N>>1)-1, Math.round(hz*N/sr)));
 
-  // compute spectra
+  // STFT
   for (let f=0; f<frames; f++){
-    const off=f*H;
-    re.fill(0); im.fill(0);
-    for (let n=0;n<win;n++) re[n]=x[off+n]*hann[n];
+    const off=f*H; re.fill(0); im.fill(0);
+    for (let n=0;n<N;n++) re[n]=x[off+n]*hann[n];
     fft();
     for (let k=1;k<N/2;k++){
       const mag2 = re[k]*re[k] + im[k]*im[k];
@@ -244,8 +246,9 @@ self.onmessage = (e)=>{
     }
   }
 
+  const fps = sr/H;
   function bandDb(lo,hi){
-    const i1 = hz2bin(lo), i2 = hz2bin(hi);
+    const i1=hz2bin(lo), i2=hz2bin(hi);
     const out = new Float32Array(frames);
     for (let f=0; f<frames; f++){
       let acc=0; for (let k=i1;k<=i2;k++) acc += S[(k-1)*frames + f];
@@ -253,124 +256,207 @@ self.onmessage = (e)=>{
     }
     return out;
   }
-  // features
-  const lfDb = bandDb(50,300);
-  const midDb= bandDb(300,3000);
-  const totalPow = new Float32Array(frames);
-  for (let f=0; f<frames; f++){
-    let acc=0; for (let k=1;k<N/2;k++) acc += S[(k-1)*frames + f];
-    totalPow[f]=acc;
-  }
-  const rms = new Float32Array(frames); for (let f=0; f<frames; f++) rms[f] = Math.sqrt(totalPow[f]/(N/2));
 
-  // ZCR & centroid (approx)
-  // centroid ~ sum(f*P)/sum(P); we use bin index as f proxy
-  const centroid = new Float32Array(frames);
+  // bands & features
+  const VLF = bandDb(20,80), LF=bandDb(50,300), BARK=bandDb(300,800), MID=bandDb(300,3000), HI=bandDb(3000,8000);
+  const RMS = new Float32Array(frames), CENT=new Float32Array(frames), FLAT=new Float32Array(frames), TONE=new Float32Array(frames);
   for (let f=0; f<frames; f++){
-    let num=0, den=0;
-    for (let k=1;k<N/2;k++){ const p=S[(k-1)*frames + f]; num += k*p; den += p; }
-    centroid[f] = den>0 ? (num/den)*(sr/N) : 0;
+    let tot=0, num=0, den=0, geo=0, bins=0, maxv=0, maxi=1;
+    for (let k=1;k<N/2;k++){
+      const p=S[(k-1)*frames + f];
+      tot += p; den += p; num += k*p;
+      if (p>0){ geo += Math.log(p); bins++; }
+      if (p>maxv){ maxv=p; maxi=k; }
+    }
+    RMS[f] = Math.sqrt(tot/Math.max(1,(N/2)));
+    CENT[f] = den>0 ? (num/den)*(sr/N) : 0;
+    const ar = den/Math.max(1,bins), ge = Math.exp(geo/Math.max(1,bins));
+    FLAT[f] = ar>0 ? Math.max(0, Math.min(1, ge/ar)) : 0;  // 0=טון, 1=רעש
+    // טונאליות ~ יחס פסגה לשכנים
+    let neigh=0, cnt=0;
+    for (let k=Math.max(1,maxi-2); k<=Math.min((N/2)-1,maxi+2); k++){ if (k===maxi) continue; neigh+=S[(k-1)*frames+f]; cnt++; }
+    const neighMean = neigh/Math.max(1,cnt);
+    TONE[f] = (neighMean>0) ? Math.max(0, Math.min(1, (maxv/neighMean-1)/4 )) : 1;
   }
-  function rollingMedian(arr, winFrames, step){
-    const out = new Float32Array(arr.length);
-    const half = winFrames>>1;
+
+  function rollMed(arr, winSec){
+    const win = Math.max(1, Math.round(winSec*fps)), step=Math.max(1, Math.round(fps));
+    const out=new Float32Array(arr.length), half=win>>1;
     for (let i=0;i<arr.length;i+=step){
-      const a = Math.max(0, i-half), b=Math.min(arr.length, i+half);
-      const tmp = Array.from(arr.subarray(a,b)).sort((a,b)=>a-b);
-      const med = tmp.length? tmp[Math.floor(tmp.length*0.5)] : 0;
+      const a=Math.max(0, i-half), b=Math.min(arr.length, i+half);
+      const sl=Array.from(arr.subarray(a,b)).sort((a,b)=>a-b);
+      const med = sl.length? sl[Math.floor(sl.length*0.5)] : 0;
       for (let j=i;j<Math.min(i+step,arr.length);j++) out[j]=med;
     }
     return out;
   }
-  const fps = sr / H;
 
-  // sustained (low freq)
-  const baseWin = Math.max(1, Math.round(baseSec * fps));
-  const baseMed = rollingMedian(lfDb, baseWin, Math.max(1, Math.round(fps))); // ~1s step
-  const thr = new Float32Array(baseMed.length); for (let i=0;i<thr.length;i++) thr[i]=baseMed[i]+dbDelta;
+  const BASE_LF=rollMed(LF, P.baseSec), BASE_MID=rollMed(MID, P.baseSec), BASE_BARK=rollMed(BARK,60), BASE_WTR=rollMed(MID, Math.max(60,P.baseSec));
+  const events=[];
 
-  const minFrames = Math.max(1, Math.round(minLongSec * fps));
-  const events = [];
-  let on=false, s=0;
-  for (let i=0;i<lfDb.length;i++){
-    if (!on && lfDb[i] >= thr[i]){ on=true; s=i; }
-    else if (on && lfDb[i] < thr[i]){
-      if (i-s >= minFrames){
-        let peak=-1e9; for (let j=s;j<i;j++) if (lfDb[j]>peak) peak=lfDb[j];
-        events.push({t0:s/fps, t1:(i-1)/fps, kind:'low_freq_sustained', peak:+peak.toFixed(2)});
-      }
-      on=false;
+  // sustained LF
+  (function(){
+    const thr=new Float32Array(LF.length); for (let i=0;i<thr.length;i++) thr[i]=BASE_LF[i]+P.dbDelta;
+    const minF=Math.round(P.minLongSec*fps); let on=false,s=0,peak=-1e9;
+    for (let i=0;i<LF.length;i++){
+      if (!on && LF[i]>=thr[i]){ on=true; s=i; peak=LF[i]; }
+      else if (on && LF[i]<thr[i]){ if (i-s>=minF) events.push({t0:s/fps, t1:(i-1)/fps, kind:'low_freq_sustained', peak:+peak.toFixed(2)}); on=false; }
+      if (on && LF[i]>peak) peak=LF[i];
     }
-  }
-  if (on && (lfDb.length-s)>=minFrames){
-    let peak=-1e9; for (let j=s;j<lfDb.length;j++) if (lfDb[j]>peak) peak=lfDb[j];
-    events.push({t0:s/fps, t1:(lfDb.length-1)/fps, kind:'low_freq_sustained', peak:+peak.toFixed(2)});
-  }
+    if (on && LF.length-s>=minF) events.push({t0:s/fps, t1:(LF.length-1)/fps, kind:'low_freq_sustained', peak:+peak.toFixed(2)});
+  })();
 
-  // transients (RMS quantile)
-  const sorted = Array.from(rms).sort((a,b)=>a-b);
-  const thrRms = sorted[Math.floor(Math.min(sorted.length-1, Math.max(0, transQ*(sorted.length-1))))] || 0;
-  let onT=false, sT=0;
-  const minT = Math.round(0.1*fps), maxT = Math.round(3.0*fps);
-  for (let i=0;i<rms.length;i++){
-    if (!onT && rms[i] >= thrRms){ onT=true; sT=i; }
-    else if (onT && rms[i] < thrRms){
-      const L = i-sT; if (L>=minT && L<=maxT){
-        let peak=0; for (let j=sT;j<i;j++) if (rms[j]>peak) peak=rms[j];
-        events.push({t0:sT/fps, t1:(i-1)/fps, kind:'transient', peak:+peak.toFixed(6)});
-      }
-      onT=false;
+  // transients
+  (function(){
+    const sorted=Array.from(RMS).sort((a,b)=>a-b);
+    const thr = sorted[Math.floor(Math.min(sorted.length-1, Math.max(0, P.transQ*(sorted.length-1))))]||0;
+    const minF=Math.round(0.08*fps), maxF=Math.round(3.0*fps);
+    let on=false,s=0,peak=0;
+    for (let i=0;i<RMS.length;i++){
+      if (!on && RMS[i]>=thr){ on=true; s=i; peak=RMS[i]; }
+      else if (on && RMS[i]<thr){ const L=i-s; if (L>=minF && L<=maxF) events.push({t0:s/fps,t1:(i-1)/fps,kind:'transient',peak:+peak.toFixed(6)}); on=false; }
+      if (on && RMS[i]>peak) peak=RMS[i];
     }
-  }
+  })();
 
-  // speech / shout (heuristic)
-  const baseMid = rollingMedian(midDb, baseWin, Math.max(1, Math.round(fps)));
-  const thrSpeech = new Float32Array(baseMid.length); const thrShout = new Float32Array(baseMid.length);
-  for (let i=0;i<thrSpeech.length;i++){ thrSpeech[i]=baseMid[i]+1.5; thrShout[i]=baseMid[i]+6.0; }
-  function detectSpeech(thrArr, minSec){
-    const out=[]; let on=false, s=0; const minF=Math.round(minSec*fps);
-    for (let i=0;i<midDb.length;i++){
-      const z = centroid[i]; // proxy to voicing/phone range
-      const cond = (midDb[i]>=thrArr[i]) && (z>=300 && z<=3500);
+  // speech & shout
+  (function(){
+    const sp=new Float32Array(MID.length), sh=new Float32Array(MID.length);
+    for (let i=0;i<MID.length;i++){ sp[i]=BASE_MID[i]+1.5; sh[i]=BASE_MID[i]+6.0; }
+    function detect(thr, minSec, kind){
+      const minF=Math.round(minSec*fps); let on=false,s=0;
+      for (let i=0;i<MID.length;i++){
+        const cond = (MID[i]>=thr[i]) && (CENT[i]>=300 && CENT[i]<=3500);
+        if (!on && cond){ on=true; s=i; }
+        else if (on && !cond){ if (i-s>=minF) events.push({t0:s/fps,t1:(i-1)/fps,kind,peak:0}); on=false; }
+      }
+      if (on && MID.length-s>=minF) events.push({t0:s/fps,t1:(MID.length-1)/fps,kind,peak:0});
+    }
+    detect(sp,1.0,'speech'); detect(sh,2.0,'shout');
+  })();
+
+  // dog_bark
+  (function(){
+    const med = rollMed(BARK,60);
+    const cand = events.filter(e=>e.kind==='transient').filter(ev=>{
+      const a=Math.round(ev.t0*fps), b=Math.min(BARK.length-1, Math.round(ev.t1*fps));
+      for (let i=a;i<=b;i++) if (BARK[i]-med[i] >= 2.0) return true;
+      return false;
+    }).sort((a,b)=>a.t0-b.t0);
+    let grp=[];
+    for (const ev of cand){
+      if (!grp.length || ev.t0 - grp[grp.length-1].t1 <= 2.0){ grp.push(ev); }
+      else { if (grp.length>=2) events.push({t0:grp[0].t0,t1:grp[grp.length-1].t1,kind:'dog_bark',peak:0}); grp=[ev]; }
+    }
+    if (grp.length>=2) events.push({t0:grp[0].t0,t1:grp[grp.length-1].t1,kind:'dog_bark',peak:0});
+  })();
+
+  // car horn
+  (function(){
+    const band = bandDb(400,1000), base=rollMed(band, Math.max(60,P.baseSec));
+    const minF=Math.round(2*fps), maxF=Math.round(12*fps); let on=false,s=0,conf=0;
+    for (let i=0;i<band.length;i++){
+      const above = band[i]-base[i], cond=(above>=6.0)&&(TONE[i]>=0.6);
+      if (!on && cond){ on=true; s=i; conf=Math.min(1, (above-6)/6*0.7 + (TONE[i]-0.6)/0.4*0.3); }
+      else if (on && !cond){ const L=i-s; if (L>=minF && L<=maxF) events.push({t0:s/fps,t1:(i-1)/fps,kind:'car_horn',peak:+(conf||0.5).toFixed(2)}); on=false; }
+    }
+  })();
+
+  // knock
+  (function(){
+    const out=[];
+    for (const ev of events.filter(e=>e.kind==='transient')){
+      const a=Math.round(ev.t0*fps), b=Math.min(CENT.length-1, Math.round(ev.t1*fps));
+      const dur=ev.t1-ev.t0; if (dur>0.5) continue;
+      let maxC=0; for (let i=a;i<=b;i++) if (CENT[i]>maxC) maxC=CENT[i];
+      if (maxC>=1000) out.push({t0:ev.t0,t1:ev.t1,kind:'knock',peak:ev.peak});
+    }
+    events.push(...out);
+  })();
+
+  // water
+  (function(){
+    const thr = new Float32Array(MID.length); for (let i=0;i<thr.length;i++) thr[i]=BASE_WTR[i]+2.0;
+    const minF=Math.round(10*fps); let on=false,s=0,conf=0;
+    for (let i=0;i<MID.length;i++){
+      const cond=(MID[i]>=thr[i])&&(FLAT[i]>=0.5);
+      if (!on && cond){ on=true; s=i; conf=Math.min(1,(MID[i]-thr[i])/8*0.6 + (FLAT[i]-0.5)/0.5*0.4); }
+      else if (on && !cond){ if (i-s>=minF) events.push({t0:s/fps,t1:(i-1)/fps,kind:'water',peak:+conf.toFixed(2)}); on=false; }
+    }
+  })();
+
+  // AC (hum)
+  (function(){
+    const h=[hz2bin(50), hz2bin(60)], tol=1, minF=Math.round(60*fps);
+    const hum=new Float32Array(frames);
+    for (let f=0; f<frames; f++){
+      function binPow(k){ let s=0; for (let i=Math.max(1,k-tol); i<=Math.min((N/2)-1,k+tol); i++) s+=S[(i-1)*frames+f]; return s; }
+      const p1 = binPow(h[0])+binPow(h[1]), p2 = binPow(2*h[0])+binPow(2*h[1]);
+      hum[f] = toDb((p1+p2)/Math.max(1,2*(2*tol+1)));
+    }
+    const base=rollMed(hum, P.baseSec), thr=new Float32Array(frames); for (let i=0;i<frames;i++) thr[i]=base[i]+2.0;
+    let on=false,s=0;
+    for (let i=0;i<frames;i++){
+      if (!on && hum[i]>=thr[i]){ on=true; s=i; }
+      else if (on && hum[i]<thr[i]){ if (i-s>=minF) events.push({t0:s/fps,t1:(i-1)/fps,kind:'ac',peak:0}); on=false; }
+    }
+  })();
+
+  // cat
+  (function(){
+    const band=BARK, base=BASE_BARK; const cand=[]; let on=false,s=0;
+    for (let i=0;i<band.length;i++){
+      const cond=(band[i]-base[i]>=2.0)&&(TONE[i]>=0.6);
       if (!on && cond){ on=true; s=i; }
-      else if (on && !cond){ if (i-s>=minF) out.push([s/fps,(i-1)/fps]); on=false; }
+      else if (on && !cond){ const L=i-s; if (L>=Math.round(0.2*fps) && L<=Math.round(2.0*fps)) cand.push([s/fps,(i-1)/fps]); on=false; }
     }
-    if (on && (midDb.length-s)>=minF) out.push([s/fps,(midDb.length-1)/fps]);
-    return out;
-  }
-  for (const [a,b] of detectSpeech(thrSpeech, 1.0)){ events.push({t0:a,t1:b,kind:'speech',peak:0}); }
-  for (const [a,b] of detectSpeech(thrShout, 2.0)){ events.push({t0:a,t1:b,kind:'shout',peak:0}); }
+    let grp=[]; for (const c of cand){
+      if (!grp.length || c[0]-grp[grp.length-1][1]<=3.0) grp.push(c);
+      else { if (grp.length>=2) events.push({t0:grp[0][0],t1:grp[grp.length-1][1],kind:'cat',peak:0}); grp=[c]; }
+    }
+    if (grp.length>=2) events.push({t0:grp[0][0],t1:grp[grp.length-1][1],kind:'cat',peak:0});
+  })();
 
-  // dog bark: cluster of transients close in time + energy in 300–800Hz
-  const barkDb = bandDb(300,800);
-  const baseBark = rollingMedian(barkDb, Math.round(60*fps), Math.max(1, Math.round(fps)));
-  const trans = events.filter(e=>e.kind==='transient').sort((a,b)=>a.t0-b.t0);
-  const barkCand=[];
-  for (const ev of trans){
-    const a=Math.round(ev.t0*fps), b=Math.min(barkDb.length-1, Math.round(ev.t1*fps));
-    let ok=false; for (let i=a;i<=b;i++) if (barkDb[i]-baseBark[i] >= 2.0){ ok=true; break; }
-    if (ok) barkCand.push(ev);
-  }
-  // group by <=2s gaps
-  let group=[]; for (const ev of barkCand){
-    if (!group.length || ev.t0 - group[group.length-1].t1 <= 2.0){ group.push(ev); }
-    else { if (group.length>=2) events.push({t0:group[0].t0,t1:group[group.length-1].t1,kind:'dog_bark',peak:0}); group=[ev]; }
-  }
-  if (group.length>=2) events.push({t0:group[0].t0,t1:group[group.length-1].t1,kind:'dog_bark',peak:0});
+  // flatulence
+  (function(){
+    const out=[];
+    for (const ev of events.filter(e=>e.kind==='transient')){
+      const a=Math.round(ev.t0*fps), b=Math.min(CENT.length-1, Math.round(ev.t1*fps));
+      const dur=ev.t1-ev.t0; if (dur<0.1 || dur>1.5) continue;
+      let maxC=0, mF=0, cnt=0; for (let i=a;i<=b;i++){ if (CENT[i]>maxC) maxC=CENT[i]; mF+=FLAT[i]; cnt++; }
+      const flat=(cnt?mF/cnt:0); if (maxC<500 && flat>=0.5) out.push({t0:ev.t0,t1:ev.t1,kind:'flatulence',peak:ev.peak});
+    }
+    events.push(...out);
+  })();
 
-  // time axis
-  const time = new Float32Array(frames); for (let i=0;i<frames;i++) time[i]=i/fps;
+  // plane landing
+  (function(){
+    const thr=new Float32Array(LF.length); for (let i=0;i<thr.length;i++) thr[i]=BASE_LF[i]+2.5;
+    const minF=Math.round(90*fps), d=new Float32Array(LF.length); for (let i=1;i<LF.length;i++) d[i]=LF[i]-LF[i-1];
+    let on=false,s=0;
+    for (let i=0;i<LF.length;i++){
+      if (!on && LF[i]>=thr[i]){ on=true; s=i; }
+      else if (on && LF[i]<thr[i]){
+        if (i-s>=minF){
+          const m=Math.floor((s+i)/2); let up=0,dn=0,c1=0,c2=0;
+          for (let k=s+1;k<=m;k++){ up+=d[k]; c1++; } for (let k=m+1;k<i;k++){ dn+=d[k]; c2++; }
+          if (c1&&c2&&up/c1>0 && dn/c2<0) events.push({t0:s/fps,t1:(i-1)/fps,kind:'plane_landing',peak:0});
+        }
+        on=false;
+      }
+    }
+  })();
+
   events.sort((a,b)=>a.t0-b.t0);
-  self.postMessage({ time, lfDb, thr, events, fps });
+  const time = new Float32Array(frames); for (let i=0;i<frames;i++) time[i]=i/fps;
+  self.postMessage({ time, lfDb: LF, thr: BASE_LF.map((v,i)=>v+P.dbDelta), events, fps });
 };
 `;
 
-// build worker
 const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
 
-// state for outputs
-let lastResults = null;
-let lastSummary = null;
+// state
+let lastResults=null, lastSummary=null;
 
 analyzeBtn.onclick = async ()=>{
   if (!files.length){ alert('לא נבחרו קבצים'); return; }
@@ -378,27 +464,25 @@ analyzeBtn.onclick = async ()=>{
     logln('[i] decoding…');
     const AC = window.AudioContext || window.webkitAudioContext;
     const ac = new AC();
-    // decode and concatenate
     const bufs = [];
     for (const f of files){
       logln('  - ' + f.name);
       const arr = await f.arrayBuffer();
-      const ab = await ac.decodeAudioData(arr);
+      const ab  = await ac.decodeAudioData(arr);
       bufs.push(ab.getChannelData(0));
     }
     const totalLen = bufs.reduce((n,a)=>n+a.length,0);
     const pcm = new Float32Array(totalLen);
-    let off=0; for (const a of bufs){ pcm.set(a, off); off += a.length; }
+    let off=0; for (const a of bufs){ pcm.set(a,off); off+=a.length; }
 
     const sr = ac.sampleRate|0;
-    const nfft = 1024, hop = 256;
     const baseSec = +document.getElementById('baseSec').value;
     const dbDelta = +document.getElementById('dbDelta').value;
     const minLongSec = +document.getElementById('minLong').value;
     const transQ = +document.getElementById('transQ').value;
 
     logln(`[i] analyzing… sr=${sr}, len=${(pcm.length/sr/3600).toFixed(2)}h`);
-    worker.postMessage({ pcm: pcm.buffer, sr, nfft, hop, baseSec, dbDelta, minLongSec, transQ }, [pcm.buffer]);
+    worker.postMessage({ pcm: pcm.buffer, sr, nfft:1024, hop:256, baseSec, dbDelta, minLongSec, transQ }, [pcm.buffer]);
   }catch(err){
     console.error(err); logln('[!] ' + err.message);
     alert('decode/analyze failed (ראה קונסול)');
@@ -409,37 +493,46 @@ worker.onmessage = (e)=>{
   const { time, lfDb, thr, events, fps } = e.data;
   lastResults = { time, lfDb, thr, events, fps };
   drawPlot(time, lfDb, thr, events);
-  renderEventsTable(events);
 
-  // summary
-  const hours = (time[time.length-1] - time[0]) / 3600;
-  const summary = {
-    hours: +hours.toFixed(3),
-    n_events: events.length,
-    sustained: events.filter(e=>e.kind==='low_freq_sustained').length,
-    transient: events.filter(e=>e.kind==='transient').length,
-    speech: events.filter(e=>e.kind==='speech').length,
-    shout: events.filter(e=>e.kind==='shout').length,
-    dog_bark: events.filter(e=>e.kind==='dog_bark').length,
+  // summary + overlap flag
+  renderEventsTable(events);
+  const hours = (time[time.length-1]-time[0])/3600;
+  const byKind = k => events.filter(e=>e.kind===k).length;
+  lastSummary = {
+    hours:+hours.toFixed(3),
+    total:events.length,
+    sustained:byKind('low_freq_sustained'),
+    car_horn:byKind('car_horn'),
+    dog_bark:byKind('dog_bark'),
+    speech:byKind('speech'),
+    shout:byKind('shout'),
+    knock:byKind('knock'),
+    water:byKind('water'),
+    ac:byKind('ac'),
+    cat:byKind('cat'),
+    flatulence:byKind('flatulence'),
+    plane_landing:byKind('plane_landing')
   };
-  lastSummary = summary;
-  document.getElementById('summary').textContent =
-    `duration: ${summary.hours} h · sustained=${summary.sustained} · transient=${summary.transient} · speech=${summary.speech} · shout=${summary.shout} · dog_bark=${summary.dog_bark}`;
+  document.getElementById('summary').innerHTML =
+    `duration: ${lastSummary.hours} h · `
+    + Object.entries(lastSummary).filter(([k])=>!['hours'].includes(k))
+      .map(([k,v])=> (typeof v==='number' && k!=='total') ? `<span class="tag">${k}:${v}</span>` : '')
+      .join(' ');
   logln('[✓] done');
 };
 
 // downloads
-savePng.onclick = ()=>{
+document.getElementById('savePng').onclick = ()=>{
   if (!lastResults){ alert('אין תוצאות'); return; }
   canvas.toBlob(b=> downloadBlob(b, 'history.png', 'image/png'));
 };
-saveCsv.onclick = ()=>{
+document.getElementById('saveCsv').onclick = ()=>{
   if (!lastResults){ alert('אין תוצאות'); return; }
-  const rows = ['t0_sec,t1_sec,kind,peak'];
+  const rows = ['t0_sec,t1_sec,kind,confidence'];
   lastResults.events.forEach(e=> rows.push(`${e.t0.toFixed(2)},${e.t1.toFixed(2)},${e.kind},${e.peak??''}`));
   downloadBlob(rows.join('\n'), 'events.csv', 'text/csv');
 };
-saveJson.onclick = ()=>{
+document.getElementById('saveJson').onclick = ()=>{
   if (!lastResults){ alert('אין תוצאות'); return; }
   const out = { summary: lastSummary, events: lastResults.events };
   downloadBlob(JSON.stringify(out, null, 2), 'summary.json', 'application/json');
