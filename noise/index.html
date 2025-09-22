@@ -192,11 +192,19 @@
             font-size: 14px;
         }
 
-        .empty-message {
-            text-align: center;
+        .browser-info {
+            margin-top: 10px;
             color: #6c757d;
-            padding: 40px 20px;
-            font-style: italic;
+        }
+
+        .warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
         @media (max-width: 768px) {
@@ -217,7 +225,11 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
-            }
+        .empty-message {
+            text-align: center;
+            color: #6c757d;
+            padding: 40px 20px;
+            font-style: italic;
         }
     </style>
 </head>
@@ -226,6 +238,9 @@
         <div class="header">
             <h1>🎤 Noise Logger</h1>
             <p>Peak Detection & Audio Recording System</p>
+            <div class="browser-info">
+                <small id="browserInfo"></small>
+            </div>
         </div>
 
         <div class="controls">
@@ -291,6 +306,33 @@
                 this.bindEvents();
                 this.loadClipsFromStorage();
                 this.updateUI();
+                this.checkBrowserCompatibility();
+            }
+
+            checkBrowserCompatibility() {
+                const browserInfo = document.getElementById('browserInfo');
+                let warnings = [];
+                
+                // Check HTTPS
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.protocol !== 'file:') {
+                    warnings.push('⚠️ HTTPS required for microphone access');
+                }
+                
+                // Check getUserMedia support
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    warnings.push('❌ Browser does not support microphone access');
+                }
+                
+                // Check AudioContext support
+                if (!window.AudioContext && !window.webkitAudioContext) {
+                    warnings.push('❌ Browser does not support Web Audio API');
+                }
+                
+                if (warnings.length > 0) {
+                    browserInfo.innerHTML = `<div class="warning">${warnings.join('<br>')}</div>`;
+                } else {
+                    browserInfo.innerHTML = '✅ Browser compatible - microphone access available';
+                }
             }
 
             initCanvas() {
@@ -311,43 +353,77 @@
 
             async startRecording() {
                 try {
+                    // Check if running in a secure context
+                    if (!window.isSecureContext && location.protocol !== 'file:') {
+                        alert('Microphone access requires HTTPS. Please use HTTPS or open as a local file.');
+                        return;
+                    }
+
+                    // Check if getUserMedia is supported
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        alert('Your browser does not support microphone access. Please use Chrome or Firefox.');
+                        return;
+                    }
+
+                    // First check if we have permissions
+                    const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                    console.log('Microphone permission status:', permissionStatus.state);
+
                     this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
                         audio: {
                             echoCancellation: false,
                             noiseSuppression: false,
-                            autoGainControl: false
+                            autoGainControl: false,
+                            sampleRate: this.sampleRate
                         } 
                     });
+                    
+                    console.log('Microphone stream obtained successfully');
                     
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
                         sampleRate: this.sampleRate
                     });
+                    
+                    // Resume audio context if suspended (required by browser policies)
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
                     
                     this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
                     this.analyzer = this.audioContext.createAnalyser();
                     this.analyzer.fftSize = 2048;
                     this.analyzer.smoothingTimeConstant = 0.3;
                     
-                    // Create processor for audio data
-                    if (this.audioContext.audioWorklet) {
-                        // Modern approach - would need separate worklet file
-                        // Fallback to ScriptProcessor for simplicity
-                        this.createScriptProcessor();
-                    } else {
-                        this.createScriptProcessor();
-                    }
+                    this.createScriptProcessor();
                     
                     this.sourceNode.connect(this.analyzer);
                     this.sourceNode.connect(this.processorNode);
-                    this.processorNode.connect(this.audioContext.destination);
+                    // Don't connect to destination to avoid feedback
+                    // this.processorNode.connect(this.audioContext.destination);
                     
                     this.isRecording = true;
                     this.updateUI();
                     this.startVisualization();
                     
+                    console.log('Recording started successfully');
+                    
                 } catch (error) {
                     console.error('Error starting recording:', error);
-                    alert('Could not access microphone. Please check permissions.');
+                    let errorMessage = 'Could not access microphone. ';
+                    
+                    if (error.name === 'NotAllowedError') {
+                        errorMessage += 'Permission denied. Please allow microphone access and try again.';
+                    } else if (error.name === 'NotFoundError') {
+                        errorMessage += 'No microphone found. Please connect a microphone.';
+                    } else if (error.name === 'NotSupportedError') {
+                        errorMessage += 'Microphone not supported by your browser.';
+                    } else if (error.name === 'NotReadableError') {
+                        errorMessage += 'Microphone is being used by another application.';
+                    } else {
+                        errorMessage += error.message || 'Unknown error occurred.';
+                    }
+                    
+                    alert(errorMessage);
                 }
             }
 
