@@ -76,20 +76,26 @@ echo "wlb timer started"
 echo "Press Ctrl+C to quit"
 echo ""
 
+# Counters
+work_count=0
+break_count=0
+
 # Main loop
 while true; do
   # WORK phase
+  ((work_count++))
   for ((remaining=WORK_DURATION; remaining>=0; remaining--)); do
     tput cup 3 0
-    echo -e "\033[1;32m WORK \033[0m  $(format_time $remaining)  "
+    echo -e "\033[1;32m WORK \033[0m  $(format_time $remaining)   W:$work_count B:$break_count  "
     sleep 1
   done
   play_sound
   
   # BREAK phase
+  ((break_count++))
   for ((remaining=BREAK_DURATION; remaining>=0; remaining--)); do
     tput cup 3 0
-    echo -e "\033[1;36m BREAK\033[0m  $(format_time $remaining)  "
+    echo -e "\033[1;36m BREAK\033[0m  $(format_time $remaining)   W:$work_count B:$break_count  "
     sleep 1
   done
   play_sound
