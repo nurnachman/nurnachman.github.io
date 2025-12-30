@@ -1,1 +1,163 @@
-hi
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Heart Rate PoC</title>
+    <style>
+        :root { --primary: #ff4757; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; text-align: center; background: var(--bg); color: #fff; margin: 0; padding: 20px; }
+        #container { background: var(--card); border-radius: 24px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); max-width: 400px; margin: auto; }
+        
+        .bpm-container { margin: 20px 0; }
+        .bpm-display { font-size: 5.5rem; color: var(--primary); font-weight: 800; line-height: 1; transition: transform 0.1s; }
+        .bpm-unit { font-size: 1.2rem; color: #888; letter-spacing: 2px; }
+        
+        .status-badge { background: #333; padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; display: inline-block; margin-bottom: 20px; color: #2ed573; }
+        
+        canvas { width: 100%; height: 140px; background: #000; border-radius: 12px; margin: 20px 0; border: 1px solid #333; }
+        
+        .controls { display: flex; flex-direction: column; gap: 10px; }
+        button { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 14px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: #333; font-size: 0.9rem; }
+        
+        .debug-info { font-family: monospace; font-size: 0.7rem; color: #555; margin-top: 15px; text-align: left; }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div class="status-badge" id="status">מוכן לכיול</div>
+    
+    <div class="bpm-container">
+        <div class="bpm-display" id="bpm">--</div>
+        <div class="bpm-unit">BPM</div>
+    </div>
+
+    <canvas id="graph"></canvas>
+    
+    <div class="controls">
+        <button onclick="requestPermissions()">התחל מדידה</button>
+        <button class="secondary" onclick="calibrate()">כייל חיישנים (3 שניות)</button>
+    </div>
+    
+    <div class="debug-info" id="debug">
+        Sensors: Offline
+    </div>
+</div>
+
+<script>
+    // הגדרות אלגוריתם
+    let alpha = 0.15; // Low-pass filter coefficient
+    let threshold = 0.25; // סף התחלתי (יתעדכן בכיול)
+    let lastCombinedValue = 0;
+    let lastPeakTime = Date.now();
+    
+    // ממוצע נע
+    let bpmHistory = [];
+    const HISTORY_SIZE = 6;
+
+    // רכיבי UI
+    const bpmEl = document.getElementById('bpm');
+    const statusEl = document.getElementById('status');
+    const debugEl = document.getElementById('debug');
+    const canvas = document.getElementById('graph');
+    const ctx = canvas.getContext('2d');
+
+    async function requestPermissions() {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            try {
+                const permission = await DeviceMotionEvent.requestPermission();
+                if (permission === 'granted') startSensors();
+            } catch (e) { statusEl.innerText = "שגיאת הרשאה"; }
+        } else {
+            startSensors();
+        }
+    }
+
+    function startSensors() {
+        statusEl.innerText = "חיישנים פעילים";
+        window.addEventListener('devicemotion', handleMotion);
+    }
+
+    function handleMotion(event) {
+        const accZ = event.acceleration?.z || 0;
+        const rotX = event.rotationRate?.alpha || 0;
+        const rotY = event.rotationRate?.beta || 0;
+
+        // Fusion: שילוב תאוצה קווית וסיבובית
+        const rawValue = Math.abs(accZ) + (Math.abs(rotX + rotY) / 12);
+        
+        // סינון רעשים (Low-pass)
+        const filtered = alpha * rawValue + (1 - alpha) * lastCombinedValue;
+        lastCombinedValue = filtered;
+
+        draw(filtered);
+        detectPeak(filtered);
+        
+        debugEl.innerText = `Raw: ${rawValue.toFixed(3)}\nFiltered: ${filtered.toFixed(3)}\nThreshold: ${threshold.toFixed(3)}`;
+    }
+
+    function detectPeak(val) {
+        const now = Date.now();
+        // זיהוי שיא: מעל הסף וגם עבר מספיק זמן מהפעימה הקודמת (מינימום 450ms)
+        if (val > threshold && (now - lastPeakTime) > 450) {
+            const diff = now - lastPeakTime;
+            const instantBpm = Math.round(60000 / diff);
+
+            if (instantBpm > 45 && instantBpm < 160) {
+                bpmHistory.push(instantBpm);
+                if (bpmHistory.length > HISTORY_SIZE) bpmHistory.shift();
+
+                // חישוב ממוצע נע
+                const avgBpm = Math.round(bpmHistory.reduce((a,b) => a+b) / bpmHistory.length);
+                
+                bpmEl.innerText = avgBpm;
+                animateBpm();
+            }
+            lastPeakTime = now;
+        }
+    }
+
+    function calibrate() {
+        statusEl.innerText = "מכייל... אל תזוז";
+        let samples = [];
+        let count = 0;
+        const calibrationInterval = setInterval(() => {
+            samples.push(lastCombinedValue);
+            count++;
+            if (count > 100) { // כ-3 שניות דגימה
+                clearInterval(calibrationInterval);
+                const maxNoise = Math.max(...samples);
+                threshold = maxNoise * 1.5; // קביעת הסף מעל רעש המקסימום שנמדד
+                statusEl.innerText = "כיול הושלם";
+                bpmHistory = []; // איפוס היסטוריה
+            }
+        }, 30);
+    }
+
+    function animateBpm() {
+        bpmEl.style.transform = "scale(1.15)";
+        setTimeout(() => bpmEl.style.transform = "scale(1)", 100);
+    }
+
+    let x = 0;
+    ctx.strokeStyle = '#ff4757';
+    ctx.lineWidth = 2;
+    function draw(val) {
+        const y = canvas.height - (val * 120);
+        if (x === 0) ctx.beginPath();
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        x += 2;
+        if (x > canvas.width) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            x = 0;
+            ctx.beginPath();
+        }
+    }
+</script>
+
+</body>
+</html>
