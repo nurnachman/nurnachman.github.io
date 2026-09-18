@@ -57,7 +57,7 @@ window.AudioEngine = (function () {
       const buf = await decodeBlob(blob);
       buffers.set(padId, buf);
       reversedCache.delete(padId);
-      return { ok: true, scheduledAt: now, delay: Math.max(0, now - audioCtx.currentTime) };
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: err };
     }
@@ -404,7 +404,7 @@ window.AudioEngine = (function () {
           break;
         }
       }
-      return { ok: true };
+      return { ok: true, scheduledAt: now, delay: Math.max(0, now - audioCtx.currentTime) };
     } catch (err) {
       console.error('Playback error', err);
       return { ok: false, reason: 'playback', error: err };
