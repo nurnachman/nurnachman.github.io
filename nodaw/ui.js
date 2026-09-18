@@ -2,7 +2,7 @@
 window.UI = (function () {
   const KEYS = ['1', '2', '3', '4', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'z', 'x', 'c', 'v'];
 
-  let gridEl, statusEl, modeSetupEl, modePlayEl;
+  let gridEl, statusEl, modeSetupEl, modePlayEl, quantizeEl, bpmEl, partsEl;
   let padEls = [];
   let drawnSamples = [];
 
@@ -11,12 +11,25 @@ window.UI = (function () {
     statusEl = document.getElementById('status-text');
     modeSetupEl = document.getElementById('mode-setup');
     modePlayEl = document.getElementById('mode-play');
+    quantizeEl = document.getElementById('quantize-toggle');
+    bpmEl = document.getElementById('bpm-input');
+    partsEl = document.getElementById('parts-select');
+
+    quantizeEl.addEventListener('change', () => App.setQuantize(quantizeEl.checked));
+    bpmEl.addEventListener('change', () => App.setBpm(bpmEl.value));
+    partsEl.addEventListener('change', () => App.setParts(partsEl.value));
 
     gridEl.innerHTML = '';
-    gridEl.addEventListener('click', (event) => {
+    gridEl.addEventListener('pointerdown', (event) => {
       const button = event.target.closest('[data-action="duplicate"]');
-      if (!button) return;
-      App.duplicatePad(Number(button.closest('.pad').dataset.index));
+      if (button) {
+        App.duplicatePad(Number(button.closest('.pad').dataset.index));
+        return;
+      }
+      const pad = event.target.closest('.pad');
+      if (pad && document.body.classList.contains('mode-play')) {
+        App.pressPad(Number(pad.dataset.index));
+      }
     });
     padEls = KEYS.map((key, i) => {
       drawnSamples[i] = null;
@@ -52,6 +65,14 @@ window.UI = (function () {
     modeSetupEl.classList.toggle('active', mode === 'SETUP');
     modePlayEl.classList.toggle('active', mode === 'PLAY');
     document.body.classList.toggle('mode-play', mode === 'PLAY');
+  }
+
+  function renderClock(quantize, bpm, parts) {
+    quantizeEl.checked = quantize;
+    bpmEl.value = String(bpm);
+    partsEl.value = String(parts);
+    bpmEl.disabled = !quantize;
+    partsEl.disabled = !quantize;
   }
   
   function makeBar(value) {
@@ -177,5 +198,5 @@ window.UI = (function () {
     }
   }
 
-  return { init, setStatus, setMode, renderGrid, setPadProgress, KEYS };
+  return { init, setStatus, setMode, renderClock, renderGrid, setPadProgress, KEYS };
 })();

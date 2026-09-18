@@ -25,6 +25,9 @@ window.App = (function () {
   const state = {
     mode: 'PLAY',
     globalIndex: 0,
+    quantize: false,
+    bpm: 120,
+    parts: 4,
     pads: Array.from({ length: PAD_COUNT }, defaultPad),
   };
   const sampleBlobs = new Map();
@@ -32,6 +35,7 @@ window.App = (function () {
   function render() {
     UI.setMode(state.mode);
     UI.renderGrid(state.pads, state.mode, state.globalIndex);
+    UI.renderClock(state.quantize, state.bpm, state.parts);
   }
 
   function renderLoop() {
@@ -54,6 +58,9 @@ window.App = (function () {
     Storage.saveGlobalState({
       mode: state.mode,
       globalIndex: state.globalIndex,
+      quantize: state.quantize,
+      bpm: state.bpm,
+      parts: state.parts,
       navigationVersion: NAVIGATION_VERSION,
     }).catch(err => console.error(err));
   }
@@ -87,7 +94,28 @@ window.App = (function () {
       UI.setStatus('Cannot load sample');
       return;
     }
-    UI.setStatus('Ready');
+    UI.setStatus(state.quantize ? 'Queued' : 'Ready');
+  }
+
+  function persistClock() {
+    AudioEngine.setClock(state.quantize, state.bpm, state.parts);
+    persistGlobal();
+    render();
+  }
+
+  function setQuantize(enabled) {
+    state.quantize = !!enabled;
+    persistClock();
+  }
+
+  function setBpm(value) {
+    state.bpm = Math.max(40, Math.min(300, Number(value) || 120));
+    persistClock();
+  }
+
+  function setParts(value) {
+    state.parts = [1, 2, 4, 8].includes(Number(value)) ? Number(value) : 4;
+    persistClock();
   }
 
   function moveFocus(delta) {
@@ -255,6 +283,9 @@ window.App = (function () {
 
     if (globalState) {
       state.mode = globalState.mode || 'PLAY';
+      state.quantize = !!globalState.quantize;
+      state.bpm = Math.max(40, Math.min(300, Number(globalState.bpm) || 120));
+      state.parts = [1, 2, 4, 8].includes(Number(globalState.parts)) ? Number(globalState.parts) : 4;
       if (globalState.navigationVersion === NAVIGATION_VERSION) {
         state.globalIndex = globalState.globalIndex || 0;
       } else if (globalState.navigationVersion === 2) {
@@ -270,6 +301,8 @@ window.App = (function () {
         state.globalIndex = oldPadIndex * FIELD_ORDER.length + oldFieldIndex;
       }
     }
+
+    AudioEngine.setClock(state.quantize, state.bpm, state.parts);
 
     const blobs = await Storage.loadAllSampleBlobs();
     for (const b of blobs) {
@@ -297,6 +330,9 @@ window.App = (function () {
     resetValue,
     handleEnter,
     duplicatePad,
+    setQuantize,
+    setBpm,
+    setParts,
     getMode: () => state.mode,
     stopAllSounds: () => AudioEngine.stopAll()
   };

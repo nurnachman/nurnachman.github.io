@@ -67,6 +67,38 @@ html, body {
   background: var(--dim);
 }
 
+.clock-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--dim);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.clock-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clock-controls input,
+.clock-controls select {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  padding: 3px 4px;
+}
+
+.clock-controls input[type="number"] { width: 58px; }
+.clock-controls input:disabled,
+.clock-controls select:disabled { color: var(--dim); opacity: 0.6; }
+.clock-toggle { color: var(--fg); }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

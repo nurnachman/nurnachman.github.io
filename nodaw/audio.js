@@ -5,6 +5,12 @@ window.AudioEngine = (function () {
   const reversedCache = new Map();
   const padStops = new Map();
   const activePlaybacks = new Map();
+  const clock = {
+    enabled: false,
+    bpm: 120,
+    parts: 4,
+    origin: null,
+  };
 
   function ensureContext() {
     if (!ctx) {
@@ -14,6 +20,28 @@ window.AudioEngine = (function () {
       ctx.resume();
     }
     return ctx;
+  }
+
+  function setClock(enabled, bpm, parts) {
+    const audioCtx = ensureContext();
+    clock.bpm = Math.max(40, Math.min(300, Number(bpm) || 120));
+    clock.parts = Math.max(1, Math.min(8, Number(parts) || 4));
+    if (enabled && !clock.enabled) {
+      clock.origin = audioCtx.currentTime;
+    } else if (!enabled) {
+      clock.origin = null;
+    }
+    clock.enabled = !!enabled;
+  }
+
+  function getScheduledTime() {
+    const audioCtx = ensureContext();
+    if (!clock.enabled || clock.origin === null) return audioCtx.currentTime;
+
+    const interval = 60 / clock.bpm / clock.parts;
+    const elapsed = Math.max(0, audioCtx.currentTime - clock.origin);
+    const nextPart = Math.floor(elapsed / interval) + 1;
+    return clock.origin + nextPart * interval;
   }
 
   async function decodeBlob(blob) {
@@ -134,6 +162,7 @@ window.AudioEngine = (function () {
     
     if (!latest) return -1;
     const elapsed = ctx.currentTime - latest.start;
+    if (elapsed < 0) return -1;
     if (elapsed >= latest.duration) return -1;
     
     const t = elapsed / latest.duration;
@@ -189,7 +218,7 @@ window.AudioEngine = (function () {
       speed = Math.pow(2, mapRange(p1, -2, 2));
     }
 
-    const now = audioCtx.currentTime;
+    const now = clock.enabled ? getScheduledTime() : audioCtx.currentTime;
     const actualDuration = (behavior === 'Stretch') ? playDuration / speed : playDuration;
 
     const localMaster = audioCtx.createGain();
@@ -218,7 +247,7 @@ window.AudioEngine = (function () {
     setTimeout(() => {
       if (padStops.has(padId)) padStops.get(padId).delete(stopFn);
       if (activePlaybacks.has(padId)) activePlaybacks.get(padId).delete(pb);
-    }, actualDuration * 1000 + 100);
+    }, Math.max(0, now - audioCtx.currentTime) * 1000 + actualDuration * 1000 + 100);
 
     try {
       const src = audioCtx.createBufferSource();
@@ -382,5 +411,15 @@ window.AudioEngine = (function () {
     }
   }
 
-  return { ensureContext, loadPadSample, clearPadSample, hasBuffer, getBuffer, playPad, stopAll, getProgress };
+  return {
+    ensureContext,
+    loadPadSample,
+    clearPadSample,
+    hasBuffer,
+    getBuffer,
+    playPad,
+    stopAll,
+    getProgress,
+    setClock,
+  };
 })();
