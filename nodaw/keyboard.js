@@ -50,6 +50,26 @@ window.Keyboard = (function () {
   function handleKeydown(e) {
     const key = e.key;
 
+    if (e.altKey && key.toLowerCase() === 'q') {
+      e.preventDefault();
+      UI.focusClockControl('quantize');
+      return;
+    }
+    if (e.altKey && key.toLowerCase() === 'b') {
+      e.preventDefault();
+      UI.focusClockControl('bpm');
+      return;
+    }
+    if (e.altKey && key.toLowerCase() === 'g') {
+      e.preventDefault();
+      UI.focusClockControl('grid');
+      return;
+    }
+
+    const target = e.target;
+    const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLSelectElement;
+    if (isFormControl) return;
+
     if (key === 'Shift') {
       shiftHeld = true;
       return;

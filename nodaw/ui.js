@@ -79,6 +79,16 @@ window.UI = (function () {
     document.body.classList.toggle('quantize-active', quantize);
   }
 
+  function focusClockControl(control) {
+    const controls = {
+      quantize: quantizeEl,
+      bpm: bpmEl,
+      grid: partsEl,
+    };
+    const element = controls[control];
+    if (element) element.focus();
+  }
+
   function setPadQueued(index, queued) {
     const el = padEls[index];
     if (el) el.classList.toggle('queued', queued);
@@ -216,5 +226,5 @@ window.UI = (function () {
     }
   }
 
-  return { init, setStatus, setMode, renderClock, renderGrid, setPadProgress, setPadQueued, setPadTriggered, KEYS };
+  return { init, setStatus, setMode, renderClock, focusClockControl, renderGrid, setPadProgress, setPadQueued, setPadTriggered, KEYS };
 })();
