@@ -98,6 +98,20 @@ html, body {
 .clock-controls input:disabled,
 .clock-controls select:disabled { color: var(--dim); opacity: 0.6; }
 .clock-toggle { color: var(--fg); }
+.control-hint,
+.clock-help {
+  color: var(--dim);
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.clock-help {
+  flex-basis: 100%;
+}
+
+.clock-controls:focus-within {
+  color: var(--fg);
+}
 
 .grid {
   display: grid;

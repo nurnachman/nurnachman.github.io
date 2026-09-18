@@ -50,25 +50,42 @@ window.Keyboard = (function () {
   function handleKeydown(e) {
     const key = e.key;
 
-    if (e.altKey && key.toLowerCase() === 'q') {
+    const target = e.target;
+    const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLSelectElement;
+    if (isFormControl) {
+      if (target.id === 'quantize-toggle') {
+        if (key === 'ArrowRight') {
+          e.preventDefault();
+          UI.focusClockControl('bpm');
+        } else if (key === 'ArrowLeft') {
+          e.preventDefault();
+          UI.focusClockControl('grid');
+        } else if (key === 'ArrowUp' || key === 'ArrowDown') {
+          e.preventDefault();
+          target.checked = !target.checked;
+          target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } else if (target.id === 'bpm-input' && key === 'ArrowRight') {
+        e.preventDefault();
+        UI.focusClockControl('grid');
+      } else if (target.id === 'bpm-input' && key === 'ArrowLeft') {
+        e.preventDefault();
+        UI.focusClockControl('quantize');
+      } else if (target.id === 'parts-select' && key === 'ArrowRight') {
+        e.preventDefault();
+        UI.focusClockControl('quantize');
+      } else if (target.id === 'parts-select' && key === 'ArrowLeft') {
+        e.preventDefault();
+        UI.focusClockControl('bpm');
+      }
+      return;
+    }
+
+    if (App.getMode() === 'PLAY' && (key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight')) {
       e.preventDefault();
       UI.focusClockControl('quantize');
       return;
     }
-    if (e.altKey && key.toLowerCase() === 'b') {
-      e.preventDefault();
-      UI.focusClockControl('bpm');
-      return;
-    }
-    if (e.altKey && key.toLowerCase() === 'g') {
-      e.preventDefault();
-      UI.focusClockControl('grid');
-      return;
-    }
-
-    const target = e.target;
-    const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLSelectElement;
-    if (isFormControl) return;
 
     if (key === 'Shift') {
       shiftHeld = true;
