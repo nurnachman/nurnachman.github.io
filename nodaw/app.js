@@ -255,7 +255,15 @@ window.App = (function () {
     }
 
     const sourcePad = state.pads[sourceIndex];
-    const sampleBlob = sampleBlobs.get(sourceIndex);
+    let sampleBlob = sampleBlobs.get(sourceIndex);
+    if (sourcePad.hasSample && !sampleBlob) {
+      try {
+        sampleBlob = await Storage.loadSampleBlob(sourceIndex);
+        if (sampleBlob) sampleBlobs.set(sourceIndex, sampleBlob);
+      } catch (err) {
+        console.error('Could not load sample for duplication', err);
+      }
+    }
     if (sourcePad.hasSample && !sampleBlob) {
       UI.setStatus('Cannot duplicate sample');
       return;

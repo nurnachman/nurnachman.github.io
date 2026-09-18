@@ -79,6 +79,16 @@ window.Storage = (function () {
     });
   }
 
+  async function loadSampleBlob(padId) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(BLOB_STORE, 'readonly');
+      const req = tx.objectStore(BLOB_STORE).get(padId);
+      req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
   async function saveGlobalState(data) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -105,6 +115,7 @@ window.Storage = (function () {
     saveSampleBlob,
     deleteSampleBlob,
     loadAllSampleBlobs,
+    loadSampleBlob,
     saveGlobalState,
     loadGlobalState,
   };
