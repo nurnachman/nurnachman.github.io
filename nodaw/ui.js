@@ -37,7 +37,6 @@ window.UI = (function () {
       el.className = 'pad';
       el.dataset.index = String(i);
       el.setAttribute('role', 'gridcell');
-      el.tabIndex = 0;
       el.setAttribute('aria-label', `Pad ${key.toUpperCase()}`);
       
       el.innerHTML = `

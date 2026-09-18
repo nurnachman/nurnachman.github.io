@@ -112,6 +112,12 @@ window.App = (function () {
     persistClock();
   }
 
+  function toggleQuantize() {
+    const enabled = !state.quantize;
+    setQuantize(enabled);
+    if (enabled) UI.focusClockControl('bpm');
+  }
+
   function setBpm(value) {
     state.bpm = Math.max(40, Math.min(300, Number(value) || 120));
     persistClock();
@@ -335,6 +341,7 @@ window.App = (function () {
     handleEnter,
     duplicatePad,
     setQuantize,
+    toggleQuantize,
     setBpm,
     setParts,
     getMode: () => state.mode,

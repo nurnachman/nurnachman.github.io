@@ -136,11 +136,6 @@ html, body {
   position: relative;
 }
 
-.pad:focus-visible {
-  outline: 2px solid var(--fg);
-  outline-offset: 2px;
-}
-
 .pad.triggered {
   background: var(--fg);
   color: var(--bg);

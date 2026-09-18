@@ -50,6 +50,12 @@ window.Keyboard = (function () {
   function handleKeydown(e) {
     const key = e.key;
 
+    if (key === ' ') {
+      e.preventDefault();
+      App.toggleQuantize();
+      return;
+    }
+
     const target = e.target;
     const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLSelectElement;
     if (isFormControl) {
