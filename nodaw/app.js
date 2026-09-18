@@ -41,7 +41,6 @@ window.App = (function () {
 
   function renderLoop() {
     requestAnimationFrame(renderLoop);
-    UI.renderClockPhase(AudioEngine.getClockState());
     for (let i = 0; i < PAD_COUNT; i++) {
       const progress = AudioEngine.getProgress(i);
       UI.setPadProgress(i, progress);

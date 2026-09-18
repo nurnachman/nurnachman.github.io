@@ -2,7 +2,7 @@
 window.UI = (function () {
   const KEYS = ['1', '2', '3', '4', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'z', 'x', 'c', 'v'];
 
-  let gridEl, statusEl, modeSetupEl, modePlayEl, quantizeEl, bpmEl, partsEl, clockPhaseEl;
+  let gridEl, statusEl, modeSetupEl, modePlayEl, quantizeEl, bpmEl, partsEl;
   let padEls = [];
   let drawnSamples = [];
 
@@ -14,7 +14,6 @@ window.UI = (function () {
     quantizeEl = document.getElementById('quantize-toggle');
     bpmEl = document.getElementById('bpm-input');
     partsEl = document.getElementById('parts-select');
-    clockPhaseEl = document.getElementById('clock-phase');
 
     quantizeEl.addEventListener('change', () => App.setQuantize(quantizeEl.checked));
     bpmEl.addEventListener('change', () => App.setBpm(bpmEl.value));
@@ -78,11 +77,6 @@ window.UI = (function () {
     bpmEl.disabled = !quantize;
     partsEl.disabled = !quantize;
     document.body.classList.toggle('quantize-active', quantize);
-  }
-
-  function renderClockPhase(clockState) {
-    clockPhaseEl.style.setProperty('--clock-phase', clockState.phase || 0);
-    clockPhaseEl.classList.toggle('running', clockState.enabled);
   }
 
   function setPadQueued(index, queued) {
@@ -222,5 +216,5 @@ window.UI = (function () {
     }
   }
 
-  return { init, setStatus, setMode, renderClock, renderClockPhase, renderGrid, setPadProgress, setPadQueued, setPadTriggered, KEYS };
+  return { init, setStatus, setMode, renderClock, renderGrid, setPadProgress, setPadQueued, setPadTriggered, KEYS };
 })();

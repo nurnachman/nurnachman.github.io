@@ -44,20 +44,6 @@ window.AudioEngine = (function () {
     return clock.origin + nextPart * interval;
   }
 
-  function getClockState() {
-    if (!ctx || !clock.enabled || clock.origin === null) {
-      return { enabled: false, phase: 0, bpm: clock.bpm, parts: clock.parts };
-    }
-    const interval = 60 / clock.bpm / clock.parts;
-    const elapsed = Math.max(0, ctx.currentTime - clock.origin);
-    return {
-      enabled: true,
-      phase: (elapsed % interval) / interval,
-      bpm: clock.bpm,
-      parts: clock.parts,
-    };
-  }
-
   async function decodeBlob(blob) {
     const arrayBuffer = await blob.arrayBuffer();
     const audioCtx = ensureContext();
@@ -435,6 +421,5 @@ window.AudioEngine = (function () {
     stopAll,
     getProgress,
     setClock,
-    getClockState,
   };
 })();
