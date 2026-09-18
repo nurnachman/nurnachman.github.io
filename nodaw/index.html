@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Appliance</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="header">
+    <h1 class="title">APPLIANCE</h1>
+    <div class="mode-bar">
+      <span id="mode-setup" class="mode-label">SETUP</span>
+      <span class="mode-line"></span>
+      <span id="mode-play" class="mode-label">PLAY</span>
+    </div>
+  </header>
+
+  <main class="grid" id="grid" role="grid" aria-label="Pad grid"></main>
+
+  <div class="status-bar">
+    <span class="status-label">Status:</span>
+    <span id="status-text">Ready</span>
+  </div>
+
+  <input type="file" id="file-input" accept=".wav,.aiff,.aif,.flac,.mp3,.ogg,.m4a,.aac" style="display:none">
+</div>
+
+<script src="storage.js"></script>
+<script src="behaviors.js"></script>
+<script src="audio.js"></script>
+<script src="ui.js"></script>
+<script src="keyboard.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
