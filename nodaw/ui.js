@@ -2,7 +2,7 @@
 window.UI = (function () {
   const KEYS = ['1', '2', '3', '4', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'z', 'x', 'c', 'v'];
 
-  let gridEl, statusEl, modeSetupEl, modePlayEl, quantizeEl, bpmEl, partsEl;
+  let gridEl, statusEl, modeSetupEl, modePlayEl, quantizeEl, bpmEl, partsEl, clockPhaseEl;
   let padEls = [];
   let drawnSamples = [];
 
@@ -14,6 +14,7 @@ window.UI = (function () {
     quantizeEl = document.getElementById('quantize-toggle');
     bpmEl = document.getElementById('bpm-input');
     partsEl = document.getElementById('parts-select');
+    clockPhaseEl = document.getElementById('clock-phase');
 
     quantizeEl.addEventListener('change', () => App.setQuantize(quantizeEl.checked));
     bpmEl.addEventListener('change', () => App.setBpm(bpmEl.value));
@@ -36,6 +37,9 @@ window.UI = (function () {
       const el = document.createElement('div');
       el.className = 'pad';
       el.dataset.index = String(i);
+      el.setAttribute('role', 'gridcell');
+      el.tabIndex = 0;
+      el.setAttribute('aria-label', `Pad ${key.toUpperCase()}`);
       
       el.innerHTML = `
         <canvas class="waveform"></canvas>
@@ -73,6 +77,26 @@ window.UI = (function () {
     partsEl.value = String(parts);
     bpmEl.disabled = !quantize;
     partsEl.disabled = !quantize;
+    document.body.classList.toggle('quantize-active', quantize);
+  }
+
+  function renderClockPhase(clockState) {
+    clockPhaseEl.style.setProperty('--clock-phase', clockState.phase || 0);
+    clockPhaseEl.classList.toggle('running', clockState.enabled);
+  }
+
+  function setPadQueued(index, queued) {
+    const el = padEls[index];
+    if (el) el.classList.toggle('queued', queued);
+  }
+
+  function setPadTriggered(index) {
+    const el = padEls[index];
+    if (!el) return;
+    el.classList.remove('triggered');
+    void el.offsetWidth;
+    el.classList.add('triggered');
+    window.setTimeout(() => el.classList.remove('triggered'), 120);
   }
   
   function makeBar(value) {
@@ -198,5 +222,5 @@ window.UI = (function () {
     }
   }
 
-  return { init, setStatus, setMode, renderClock, renderGrid, setPadProgress, KEYS };
+  return { init, setStatus, setMode, renderClock, renderClockPhase, renderGrid, setPadProgress, setPadQueued, setPadTriggered, KEYS };
 })();

@@ -6,6 +6,7 @@ window.App = (function () {
   const NAVIGATION_VERSION = 3;
   const PREVIOUS_FIELD_COUNT = FIELD_ORDER.length - 1;
   const TOTAL_FIELDS = PAD_COUNT * FIELD_ORDER.length;
+  const PART_LABELS = { 1: 'beat', 2: '1/2', 4: '1/4', 8: '1/8' };
 
   function defaultPad() {
     return {
@@ -40,9 +41,11 @@ window.App = (function () {
 
   function renderLoop() {
     requestAnimationFrame(renderLoop);
+    UI.renderClockPhase(AudioEngine.getClockState());
     for (let i = 0; i < PAD_COUNT; i++) {
       const progress = AudioEngine.getProgress(i);
       UI.setPadProgress(i, progress);
+      if (progress >= 0) UI.setPadQueued(i, false);
     }
   }
 
@@ -72,6 +75,7 @@ window.App = (function () {
   }
 
   function pressPad(index) {
+    UI.setPadTriggered(index);
     if (state.mode === 'SETUP') {
       const currentPadIndex = Math.floor(state.globalIndex / FIELD_ORDER.length);
       if (index !== currentPadIndex) {
@@ -94,7 +98,8 @@ window.App = (function () {
       UI.setStatus('Cannot load sample');
       return;
     }
-    UI.setStatus(state.quantize ? 'Queued' : 'Ready');
+    UI.setPadQueued(index, state.quantize && result.delay > 0);
+    UI.setStatus(state.quantize ? `Queued for ${PART_LABELS[state.parts]}` : 'Ready');
   }
 
   function persistClock() {
