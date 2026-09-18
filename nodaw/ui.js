@@ -13,6 +13,11 @@ window.UI = (function () {
     modePlayEl = document.getElementById('mode-play');
 
     gridEl.innerHTML = '';
+    gridEl.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action="duplicate"]');
+      if (!button) return;
+      App.duplicatePad(Number(button.closest('.pad').dataset.index));
+    });
     padEls = KEYS.map((key, i) => {
       drawnSamples[i] = null;
       const el = document.createElement('div');
@@ -22,7 +27,7 @@ window.UI = (function () {
       el.innerHTML = `
         <canvas class="waveform"></canvas>
         <div class="playhead"></div>
-        <div class="pad-header">${key.toUpperCase()}</div>
+        <div class="pad-header"><span>${key.toUpperCase()}</span></div>
         <div class="setting" data-field="0"><span class="setting-label">Sample</span><span class="setting-value pad-sample"></span></div>
         <div class="setting" data-field="1"><span class="setting-label">Start</span><span class="setting-value"></span></div>
         <div class="setting" data-field="2"><span class="setting-label">End</span><span class="setting-value"></span></div>
@@ -32,6 +37,7 @@ window.UI = (function () {
         <div class="setting" data-field="6"><span class="setting-label">P2</span><span class="setting-value"></span></div>
         <div class="setting" data-field="7"><span class="setting-label">P3</span><span class="setting-value"></span></div>
         <div class="setting" data-field="8"><span class="setting-label">Volume</span><span class="setting-value"></span></div>
+        <div class="setting duplicate-setting"><button class="duplicate-button" type="button" tabindex="-1" data-action="duplicate" title="Duplicate into an empty pad">duplicate into an empty pad</button></div>
       `;
       gridEl.appendChild(el);
       return el;
@@ -110,7 +116,7 @@ window.UI = (function () {
     padEls.forEach((el, i) => {
       const pad = pads[i];
       const labels = Behaviors.labelsFor(pad.behavior);
-      const settings = el.querySelectorAll('.setting');
+      const settings = el.querySelectorAll('.setting[data-field]');
 
       el.classList.toggle('has-sample', !!pad.hasSample);
       
@@ -122,7 +128,7 @@ window.UI = (function () {
           drawWaveform(canvas, buf, pad.start, pad.end);
           drawnSamples[i] = { name: pad.sampleName, start: pad.start, end: pad.end };
         }
-      } else if (!pad.hasSample && cached !== null) {
+      } else if (!pad.hasSample) {
         if (canvas) {
           const ctx = canvas.getContext('2d');
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -149,9 +155,13 @@ window.UI = (function () {
       settings[8].querySelector('.setting-value').textContent = makeBar(pad.volume);
 
       settings.forEach((s, fieldIdx) => {
-        const isFocused = (mode === 'SETUP') && (globalIndex === i * 9 + fieldIdx);
+        const isFocused = (mode === 'SETUP') && (globalIndex === i * 10 + fieldIdx);
         s.classList.toggle('focused', isFocused);
       });
+      const duplicateSetting = el.querySelector('.duplicate-setting');
+      const duplicateButton = el.querySelector('.duplicate-button');
+      duplicateSetting.classList.toggle('focused', mode === 'SETUP' && globalIndex === i * 10 + 9);
+      duplicateButton.classList.toggle('focused', mode === 'SETUP' && globalIndex === i * 10 + 9);
     });
   }
 

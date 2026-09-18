@@ -39,6 +39,12 @@ window.AudioEngine = (function () {
     return buffers.has(padId);
   }
 
+  function clearPadSample(padId) {
+    stopPad(padId);
+    buffers.delete(padId);
+    reversedCache.delete(padId);
+  }
+
   function getBuffer(padId) {
     return buffers.get(padId);
   }
@@ -376,5 +382,5 @@ window.AudioEngine = (function () {
     }
   }
 
-  return { ensureContext, loadPadSample, hasBuffer, getBuffer, playPad, stopAll, getProgress };
+  return { ensureContext, loadPadSample, clearPadSample, hasBuffer, getBuffer, playPad, stopAll, getProgress };
 })();

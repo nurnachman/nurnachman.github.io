@@ -2,7 +2,9 @@
 window.App = (function () {
   const PAD_COUNT = 16;
   const SUPPORTED_EXT = ['wav', 'aiff', 'aif', 'flac', 'mp3', 'ogg', 'm4a', 'aac'];
-  const FIELD_ORDER = ['sample', 'start', 'end', 'playback', 'behavior', 'param1', 'param2', 'param3', 'volume'];
+  const FIELD_ORDER = ['sample', 'start', 'end', 'playback', 'behavior', 'param1', 'param2', 'param3', 'volume', 'duplicate'];
+  const NAVIGATION_VERSION = 3;
+  const PREVIOUS_FIELD_COUNT = FIELD_ORDER.length - 1;
   const TOTAL_FIELDS = PAD_COUNT * FIELD_ORDER.length;
 
   function defaultPad() {
@@ -25,6 +27,7 @@ window.App = (function () {
     globalIndex: 0,
     pads: Array.from({ length: PAD_COUNT }, defaultPad),
   };
+  const sampleBlobs = new Map();
 
   function render() {
     UI.setMode(state.mode);
@@ -51,6 +54,7 @@ window.App = (function () {
     Storage.saveGlobalState({
       mode: state.mode,
       globalIndex: state.globalIndex,
+      navigationVersion: NAVIGATION_VERSION,
     }).catch(err => console.error(err));
   }
 
@@ -101,7 +105,7 @@ window.App = (function () {
     const field = FIELD_ORDER[fieldIndex];
     const pad = state.pads[padIndex];
 
-    if (field === 'sample') return; 
+    if (field === 'sample' || field === 'duplicate') return;
 
     if (field === 'playback') {
       pad.playback = pad.playback === 'Overlap' ? 'Restart' : 'Overlap';
@@ -126,9 +130,13 @@ window.App = (function () {
     const pad = state.pads[padIndex];
     const def = defaultPad();
 
-    if (field === 'sample') {
+    if (field === 'sample' || field === 'duplicate') {
+      if (field === 'duplicate') return;
       pad.hasSample = def.hasSample;
       pad.sampleName = def.sampleName;
+      sampleBlobs.delete(padIndex);
+      AudioEngine.clearPadSample(padIndex);
+      Storage.deleteSampleBlob(padIndex).catch(err => console.error(err));
     } else {
       pad[field] = def[field];
     }
@@ -144,6 +152,8 @@ window.App = (function () {
     
     if (FIELD_ORDER[fieldIndex] === 'sample') {
       assignSample(padIndex);
+    } else if (FIELD_ORDER[fieldIndex] === 'duplicate') {
+      duplicatePad(padIndex);
     }
   }
 
@@ -190,9 +200,42 @@ window.App = (function () {
     const pad = state.pads[index];
     pad.hasSample = true;
     pad.sampleName = file.name;
+    sampleBlobs.set(index, file);
     persistPad(index);
     persistSampleBlob(index, file);
     UI.setStatus('Ready');
+    render();
+  }
+
+  async function duplicatePad(sourceIndex) {
+    if (sourceIndex < 0 || sourceIndex >= PAD_COUNT) return;
+
+    const targetIndex = state.pads.findIndex((pad) => !pad.hasSample);
+    if (targetIndex === -1) {
+      UI.setStatus('No empty pad');
+      return;
+    }
+
+    const sourcePad = state.pads[sourceIndex];
+    const sampleBlob = sampleBlobs.get(sourceIndex);
+    if (sourcePad.hasSample && !sampleBlob) {
+      UI.setStatus('Cannot duplicate sample');
+      return;
+    }
+
+    state.pads[targetIndex] = Object.assign(defaultPad(), sourcePad);
+    if (sampleBlob) {
+      const result = await AudioEngine.loadPadSample(targetIndex, sampleBlob);
+      if (!result.ok) {
+        state.pads[targetIndex] = defaultPad();
+        UI.setStatus('Cannot duplicate sample');
+        return;
+      }
+      sampleBlobs.set(targetIndex, sampleBlob);
+      persistSampleBlob(targetIndex, sampleBlob);
+    }
+    persistPad(targetIndex);
+    UI.setStatus(`Duplicated to ${UI.KEYS[targetIndex].toUpperCase()}`);
     render();
   }
 
@@ -212,11 +255,25 @@ window.App = (function () {
 
     if (globalState) {
       state.mode = globalState.mode || 'PLAY';
-      state.globalIndex = globalState.globalIndex || 0;
+      if (globalState.navigationVersion === NAVIGATION_VERSION) {
+        state.globalIndex = globalState.globalIndex || 0;
+      } else if (globalState.navigationVersion === 2) {
+        const oldIndex = globalState.globalIndex || 0;
+        const oldPadIndex = Math.floor(oldIndex / FIELD_ORDER.length);
+        const oldFieldIndex = oldIndex % FIELD_ORDER.length;
+        const newFieldIndex = oldFieldIndex === 0 ? FIELD_ORDER.length - 1 : oldFieldIndex - 1;
+        state.globalIndex = oldPadIndex * FIELD_ORDER.length + newFieldIndex;
+      } else {
+        const oldIndex = globalState.globalIndex || 0;
+        const oldPadIndex = Math.floor(oldIndex / PREVIOUS_FIELD_COUNT);
+        const oldFieldIndex = oldIndex % PREVIOUS_FIELD_COUNT;
+        state.globalIndex = oldPadIndex * FIELD_ORDER.length + oldFieldIndex;
+      }
     }
 
     const blobs = await Storage.loadAllSampleBlobs();
     for (const b of blobs) {
+      sampleBlobs.set(b.id, b.blob);
       if (state.pads[b.id] && state.pads[b.id].hasSample) {
         await AudioEngine.loadPadSample(b.id, b.blob);
       }
@@ -239,6 +296,7 @@ window.App = (function () {
     adjustValue,
     resetValue,
     handleEnter,
+    duplicatePad,
     getMode: () => state.mode,
     stopAllSounds: () => AudioEngine.stopAll()
   };

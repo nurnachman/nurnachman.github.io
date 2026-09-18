@@ -118,11 +118,40 @@ html, body {
 
 .pad.has-sample { border-color: var(--fg); }
 
-.pad-header { 
+.pad-header {
   font-size: 16px; 
   font-weight: bold; 
   text-align: center; 
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.duplicate-button {
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 10px;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.duplicate-setting:hover,
+.duplicate-setting:focus-within,
+.duplicate-setting.focused {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.duplicate-setting:hover .duplicate-button,
+.duplicate-setting:focus-within .duplicate-button,
+.duplicate-setting.focused .duplicate-button {
+  color: var(--bg);
 }
 
 .setting {
@@ -173,4 +202,8 @@ body.mode-play .pad {
 body.mode-play .pad-header {
   font-size: 24px;
   margin-bottom: 0;
+  justify-content: center;
+}
+body.mode-play .duplicate-button {
+  display: none;
 }
